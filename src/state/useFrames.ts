@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { BakeJob, BakeMessage } from "./bake.worker";
 import type { Clip } from "../dither/clip";
 import { SOURCE_PALETTE } from "../dither/palettes";
 import { prepareSource, renderFrame, type Source } from "../dither/render";
@@ -121,6 +122,27 @@ function renderKey(s: Settings): string {
   ].join("|");
 }
 
+/**
+ * One worker for the life of the page.
+ *
+ * Created lazily, because a browser without module workers should still get
+ * the sliced main-thread path rather than a blank stage. Re-used across bakes
+ * rather than spawned per job: starting a worker costs more than most bakes
+ * take, and a stale job is abandoned by id inside the worker anyway.
+ */
+let worker: Worker | null | undefined;
+function bakeWorker(): Worker | null {
+  if (worker !== undefined) return worker;
+  try {
+    worker = new Worker(new URL("./bake.worker.ts", import.meta.url), { type: "module" });
+  } catch {
+    worker = null;
+  }
+  return worker;
+}
+
+let nextJobId = 1;
+
 export function useFrames(clip: Clip | null, settings: Settings): Bake {
   const [bake, setBake] = useState<Bake>(EMPTY);
   const key = renderKey(settings);
@@ -156,8 +178,54 @@ export function useFrames(clip: Clip | null, settings: Settings): Bake {
       }
       return cached;
     };
+
     const frames: Uint8Array[] = [];
     let cancelled = false;
+
+    /* A still has one source for the whole loop, so the whole loop can be
+       handed to the worker at once. A clip needs a different frame reduced per
+       loop position, and that reduction needs a canvas the worker does not
+       have — so footage stays on the sliced main-thread path. It is also the
+       case that footage is usually being dithered at a smaller grid, which is
+       what made this the right place to draw the line. */
+    const hired = clip.images.length === 1 ? bakeWorker() : null;
+
+    if (hired) {
+      const source = sourceFor(0);
+      const id = nextJobId++;
+
+      const onMessage = (e: MessageEvent<BakeMessage>) => {
+        const msg = e.data;
+        if (cancelled || msg.id !== id) return;
+        if (msg.type === "frame") {
+          frames[msg.index] = msg.frame;
+          setBake({ frames: frames.slice(), progress: (msg.index + 1) / msg.total, ...shape });
+        }
+      };
+
+      hired.addEventListener("message", onMessage);
+
+      const job: BakeJob = {
+        id,
+        // Copied, not transferred: the main thread still needs this grid for
+        // the scope and the GPU preview.
+        lum: source.lum,
+        rgb: source.rgb,
+        glow: source.glow ?? null,
+        width: source.width,
+        height: source.height,
+        settings,
+        levels,
+        colour,
+      };
+      hired.postMessage(job);
+
+      return () => {
+        cancelled = true;
+        hired.removeEventListener("message", onMessage);
+      };
+    }
+
     let raf = 0;
     let i = 0;
 
