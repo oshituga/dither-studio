@@ -281,8 +281,18 @@ function App() {
      is exactly the window the live preview exists to fill. The source knows the
      grid the moment the settings do, and the two always agree once both
      exist. */
-  const showW = view.width || source?.width || 1;
-  const showH = view.height || source?.height || 1;
+
+  /* With glyphs on, the stage must take the DRAWN size, not the grid.
+     The glyph canvas is grid x cell — ten times bigger on each axis at the
+     default — and blitting that into a canvas sized to the grid resamples it
+     back down to one pixel per character, which throws away every glyph and
+     leaves something that looks exactly like the pixel dither it replaced.
+     Same aspect ratio either way, so the layout does not notice. */
+  const gridW = view.width || source?.width || 1;
+  const gridH = view.height || source?.height || 1;
+  const cell = settings.ascii ? settings.asciiCell : 1;
+  const showW = gridW * cell;
+  const showH = gridH * cell;
 
   const palette = useMemo(() => {
     if (view.colour) return buildSourcePalette(view.levels);
@@ -332,6 +342,8 @@ function App() {
   // than showing an empty stage.
   const shown = frames.length ? frames[Math.min(frame, frames.length - 1)] : null;
 
+
+
   /* ASCII draws to its own canvas and the stage blits it, the same way the GPU
      preview does — one path for "something else produced these pixels". */
   const asciiCanvas = useRef<HTMLCanvasElement | null>(null);
@@ -350,7 +362,6 @@ function App() {
     return asciiCanvas.current;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.ascii, settings.asciiSet, settings.asciiCell, shown, view, palette]);
-
 
   /* ---- url ----------------------------------------------------------------- */
 
