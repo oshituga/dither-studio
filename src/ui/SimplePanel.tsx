@@ -1,6 +1,6 @@
 import type { Settings } from "../dither/types";
 import { ColourSection } from "./ColourSection";
-import { Section, Slider } from "./primitives";
+import { Section, Slider, Toggle } from "./primitives";
 
 /**
  * The simple panel.
@@ -23,12 +23,14 @@ export function SimplePanel({
   onPalette,
   onFromImage,
   canExtract,
+  clipFrames,
 }: {
   settings: Settings;
   set: (patch: Partial<Settings>) => void;
   onPalette: (id: string) => void;
   onFromImage: () => void;
   canExtract: boolean;
+  clipFrames: number;
 }) {
   /* Pixel size, not grid width. They are the same number read from opposite
      ends — a bigger grid means smaller pixels — and "how big are the dots" is
@@ -104,9 +106,17 @@ export function SimplePanel({
           suffix="fps"
           onChange={(v) => set({ fps: v })}
         />
+        {clipFrames > 1 && (
+          <Toggle
+            label="Play it out and back"
+            checked={settings.pingpong}
+            onChange={(v) => set({ pingpong: v })}
+          />
+        )}
         <p className="text-[11px] leading-[15px] tracking-[-0.01em] text-dim">
-          Each look moves in its own way. This is how much of it you get — the
-          full panel has the seven motions separately.
+          {clipFrames > 1
+            ? "Your clip supplies the movement. This adds the grid's own on top — the full panel has the seven motions separately."
+            : "Each look moves in its own way. This is how much of it you get — the full panel has the seven motions separately."}
         </p>
       </Section>
     </>

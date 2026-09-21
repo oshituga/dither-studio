@@ -8,6 +8,7 @@ import {
   PALETTES,
   SOURCE_PALETTE,
 } from "./dither/palettes";
+import { loadClip, type Clip } from "./dither/clip";
 import { PRESETS, shuffle, type Preset } from "./dither/presets";
 import { prepareSource } from "./dither/render";
 import { drawSamplePlate } from "./dither/sample";
@@ -26,7 +27,7 @@ import { Section } from "./ui/primitives";
 
 const ALGORITHM_NAMES = Object.fromEntries(ALGORITHMS.map((a) => [a.id, a.name]));
 
-type Loaded = { image: CanvasImageSource; width: number; height: number; name: string };
+/** What is loaded is a clip: a photograph is one of length one. */
 
 /**
  * The desktop gate.
@@ -57,7 +58,8 @@ function App() {
     ...DEFAULTS,
     ...decode(window.location.hash),
   }));
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [loaded, setLoaded] = useState<Clip | null>(null);
+  const [loading, setLoading] = useState<number | null>(null);
   const [playing, setPlaying] = useState(true);
   const [frame, setFrame] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -139,42 +141,53 @@ function App() {
 
   useEffect(() => {
     const plate = drawSamplePlate();
-    setLoaded({ image: plate, width: plate.width, height: plate.height, name: "Plate" });
+    setLoaded({
+      images: [plate],
+      width: plate.width,
+      height: plate.height,
+      name: "Plate",
+      kind: "still",
+    });
   }, []);
 
   const openFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setToast("That is not an image");
+    const ok = file.type.startsWith("image/") || file.type.startsWith("video/");
+    if (!ok) {
+      setToast("That is not an image or a video");
       return;
     }
+    setLoading(0);
     try {
-      const bitmap = await createImageBitmap(file);
-      setLoaded({
-        image: bitmap,
-        width: bitmap.width,
-        height: bitmap.height,
-        name: file.name.replace(/\.[^.]+$/, ""),
-      });
+      const clip = await loadClip(file, (done, total) => setLoading(done / total));
+      setLoaded(clip);
       setFrame(0);
-    } catch {
-      // HEIC and some CMYK JPEGs land here. The <img> path decodes a few of
-      // them that createImageBitmap refuses outright, so it is worth a second
-      // attempt before giving up on the file.
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        setLoaded({
-          image: img,
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-          name: file.name.replace(/\.[^.]+$/, ""),
+      if (clip.kind === "video") {
+        // Footage brings its own movement. Leaving the grid drifting on top of
+        // it is two motions fighting, and the first thing anyone wants to see
+        // is their clip dithered — so the drift stands down and the loop
+        // adopts the clip's own length and rate.
+        /* Ping-pong walks the clip out and back, which is 2(n-1) steps — 13
+           frames become a 24-step cycle. Setting the loop to exactly that maps
+           one loop position to one clip frame; any other length resamples the
+           triangle and repeats a frame or two at the turns, which reads as a
+           stutter in an otherwise smooth move. */
+        const span = Math.min(72, Math.max(2, (clip.images.length - 1) * 2));
+        jump({
+          ...settings,
+          drift: 0,
+          frames: span,
+          fps: Math.round(Math.min(30, Math.max(6, clip.fps ?? 12))),
+          pingpong: true,
         });
-        setFrame(0);
-      };
-      img.onerror = () => setToast("This browser cannot open that image");
-      img.src = url;
+        setToast(`${clip.images.length} frames — ping-pong on, so it loops`);
+      }
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Could not open that file");
+    } finally {
+      setLoading(null);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
 
   useEffect(() => {
     const over = (e: DragEvent) => {
@@ -208,8 +221,8 @@ function App() {
 
   /* ---- render -------------------------------------------------------------- */
 
-  const source = useSource(loaded?.image ?? null, loaded?.width ?? 0, loaded?.height ?? 0, settings);
-  const bake = useFrames(source, settings);
+  const source = useSource(loaded?.images[0] ?? null, loaded?.width ?? 0, loaded?.height ?? 0, settings);
+  const bake = useFrames(loaded, settings);
 
   /* Hold the last loop that actually had frames in it.
      A rebake starts empty and fills over the next few animation frames, so for
@@ -231,7 +244,7 @@ function App() {
   // more work than the image being edited.
   const thumbSource = useMemo(() => {
     if (!loaded) return null;
-    return prepareSource(loaded.image, loaded.width, loaded.height, {
+    return prepareSource(loaded.images[0], loaded.width, loaded.height, {
       ...settings,
       resolution: 96,
       detail: 35,
@@ -396,14 +409,17 @@ function App() {
             dither<span className="text-dim">.studio</span>
           </span>
           <span className="h-[14px] w-px bg-line" />
-          <span className="value truncate text-dim">{loaded?.name}</span>
+          <span className="value truncate text-dim">
+            {loaded?.name}
+            {loaded && loaded.images.length > 1 ? ` · ${loaded.images.length} frames` : ""}
+          </span>
         </div>
 
         <div className="flex items-center gap-px">
           <input
             ref={fileInput}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && openFile(e.target.files[0])}
           />
@@ -487,7 +503,7 @@ function App() {
             width={view.width || 1}
             height={view.height || 1}
             palette={palette}
-            progress={progress}
+            progress={loading !== null ? loading : progress}
             dragging={dragging}
             label={`${view.width} × ${view.height} px`}
             onPickFile={() => fileInput.current?.click()}
@@ -543,6 +559,7 @@ function App() {
               source={source}
               theme={theme}
               sourceLabel={`${loaded?.width ?? 0}×${loaded?.height ?? 0}`}
+              clipFrames={loaded?.images.length ?? 1}
             />
           ) : (
             <SimplePanel
@@ -551,6 +568,7 @@ function App() {
               onPalette={choosePalette}
               onFromImage={rampFromImage}
               canExtract={Boolean(source)}
+              clipFrames={loaded?.images.length ?? 1}
             />
           )}
         </aside>

@@ -28,6 +28,7 @@ export function Rail({
   source,
   theme,
   sourceLabel,
+  clipFrames,
 }: {
   settings: Settings;
   set: (patch: Partial<Settings>) => void;
@@ -36,6 +37,9 @@ export function Rail({
   source: Source | null;
   theme: string;
   sourceLabel: string;
+  /** Frames in the loaded clip. One means a photograph, and the controls that
+      only mean something for footage stay out of the way. */
+  clipFrames: number;
 }) {
   const colour = settings.palette === SOURCE_PALETTE;
   // The brush is a tool, not a setting: it says nothing about the picture, so
@@ -252,6 +256,19 @@ export function Rail({
           suffix="fps"
           onChange={(v) => set({ fps: v })}
         />
+        {clipFrames > 1 && (
+          <>
+            <Toggle
+              label="Ping-pong"
+              checked={settings.pingpong}
+              onChange={(v) => set({ pingpong: v })}
+            />
+            <p className="text-[11px] leading-[15px] tracking-[-0.01em] text-dim">
+              Plays the {clipFrames} frames out and back. Most footage does not
+              end where it started, and without this the join is a jump cut.
+            </p>
+          </>
+        )}
       </Section>
     </>
   );

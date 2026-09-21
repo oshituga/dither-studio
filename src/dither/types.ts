@@ -57,6 +57,9 @@ export type Settings = {
 
   /* ---- loop ---- */
   frames: number;
+  /** Play the clip out and back, so footage that does not end where it began
+      still loops. Meaningless for a still, and hidden for one. */
+  pingpong: boolean;
   fps: number;
 };
 
@@ -121,5 +124,6 @@ export const DEFAULTS: Settings = {
   cycles: 1,
   motionScale: 100,
   frames: 24,
+  pingpong: false,
   fps: 12,
 };
