@@ -1,9 +1,11 @@
 import {
   buildPalette,
+  CUSTOM_PALETTE,
   MAX_SOURCE_LEVELS,
   PALETTES,
   SOURCE_PALETTE,
 } from "../dither/palettes";
+import { CustomRamp } from "./CustomRamp";
 import type { Source } from "../dither/render";
 import { ALGORITHMS, type Settings } from "../dither/types";
 import { Chips, Compass, Section, Slider, Toggle } from "./primitives";
@@ -26,12 +28,14 @@ export function Rail({
   settings,
   set,
   onPalette,
+  onFromImage,
   source,
   sourceLabel,
 }: {
   settings: Settings;
   set: (patch: Partial<Settings>) => void;
   onPalette: (id: string) => void;
+  onFromImage: () => void;
   source: Source | null;
   sourceLabel: string;
 }) {
@@ -176,6 +180,17 @@ export function Rail({
             Keep the image's own colour
           </span>
         </button>
+        <CustomRamp
+          stops={settings.custom}
+          levels={settings.levels}
+          invert={settings.paletteInvert}
+          active={settings.palette === CUSTOM_PALETTE}
+          onChange={(custom) => set({ custom })}
+          onActivate={() => onPalette(CUSTOM_PALETTE)}
+          onFromImage={onFromImage}
+          canExtract={Boolean(source)}
+        />
+
         <div className="grid grid-cols-2 gap-px">
           {PALETTES.map((p) => {
             const active = p.id === settings.palette;

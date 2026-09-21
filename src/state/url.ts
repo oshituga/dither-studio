@@ -14,9 +14,19 @@ const KEYS = Object.keys(DEFAULTS) as (keyof Settings)[];
 export function encode(settings: Settings): string {
   const params = new URLSearchParams();
   for (const k of KEYS) {
-    if (settings[k] === DEFAULTS[k]) continue;
+    // Arrays are compared by content; every other value by identity.
+    const same = Array.isArray(settings[k])
+      ? JSON.stringify(settings[k]) === JSON.stringify(DEFAULTS[k])
+      : settings[k] === DEFAULTS[k];
+    if (same) continue;
     const v = settings[k];
-    params.set(k, typeof v === "boolean" ? (v ? "1" : "0") : String(v));
+    if (Array.isArray(v)) {
+      // Hex stops, comma separated, without the hashes — a '#' in a hash
+      // fragment ends the fragment.
+      params.set(k, v.map((c) => String(c).replace("#", "")).join(","));
+    } else {
+      params.set(k, typeof v === "boolean" ? (v ? "1" : "0") : String(v));
+    }
   }
   return params.toString();
 }
@@ -28,7 +38,13 @@ export function decode(hash: string): Partial<Settings> {
     const raw = params.get(k);
     if (raw === null) continue;
     const fallback = DEFAULTS[k];
-    if (typeof fallback === "boolean") out[k] = raw === "1";
+    if (Array.isArray(fallback)) {
+      const stops = raw
+        .split(",")
+        .map((c) => `#${c.replace(/[^0-9a-f]/gi, "").slice(0, 6)}`)
+        .filter((c) => c.length === 7);
+      if (stops.length >= 2) out[k] = stops;
+    } else if (typeof fallback === "boolean") out[k] = raw === "1";
     else if (typeof fallback === "number") {
       const n = Number(raw);
       if (Number.isFinite(n)) out[k] = n;

@@ -46,6 +46,73 @@ export function buildSourcePalette(levels: number): RGB[] {
   return out;
 }
 
+/** The id for the ramp the user has built themselves. Its stops live in the
+    settings, so a shared link carries the colours with it. */
+export const CUSTOM_PALETTE = "custom";
+
+/**
+ * Pull a ramp out of the photograph itself, by median cut.
+ *
+ * Repeatedly split the box of colours along whichever channel is currently
+ * widest, then average each bucket — which lands the stops where the image
+ * actually has colour rather than on an even division of a space that is
+ * mostly empty. Sorted dark to light at the end, because a ramp is an ordered
+ * thing and the buckets come out in whatever order the splitting left them.
+ *
+ * Every fourth pixel is enough: this is choosing five or six colours, and the
+ * answer does not move once a few thousand samples are in.
+ */
+export function extractRamp(rgb: Float32Array, count: number): string[] {
+  const pixels: RGB[] = [];
+  for (let i = 0; i < rgb.length; i += 12) {
+    pixels.push([rgb[i] * 255, rgb[i + 1] * 255, rgb[i + 2] * 255]);
+  }
+  if (pixels.length === 0) return ["#000000", "#FFFFFF"];
+
+  let boxes: RGB[][] = [pixels];
+  while (boxes.length < count) {
+    // Split the box with the widest spread; if none can be split, stop.
+    let target = -1;
+    let widest = -1;
+    let axis = 0;
+    boxes.forEach((box, i) => {
+      if (box.length < 2) return;
+      for (let c = 0; c < 3; c++) {
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (const px of box) {
+          if (px[c] < lo) lo = px[c];
+          if (px[c] > hi) hi = px[c];
+        }
+        if (hi - lo > widest) {
+          widest = hi - lo;
+          target = i;
+          axis = c;
+        }
+      }
+    });
+    if (target < 0) break;
+    const box = boxes[target].slice().sort((a, b) => a[axis] - b[axis]);
+    const mid = box.length >> 1;
+    boxes = boxes.filter((_, i) => i !== target).concat([box.slice(0, mid), box.slice(mid)]);
+  }
+
+  const stops = boxes.map((box) => {
+    const sum = box.reduce((acc, px) => [acc[0] + px[0], acc[1] + px[1], acc[2] + px[2]], [0, 0, 0]);
+    return [
+      Math.round(sum[0] / box.length),
+      Math.round(sum[1] / box.length),
+      Math.round(sum[2] / box.length),
+    ] as RGB;
+  });
+
+  const lum = (c: RGB) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  stops.sort((a, b) => lum(a) - lum(b));
+  return stops.map(
+    (c) => `#${c.map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("")}`,
+  );
+}
+
 export const PALETTES: Palette[] = [
   // The site's own two colours. The default, because this tool is his.
   { id: "ink", name: "Ink on cream", ramp: ["#26345B", "#FFFCF8"] },

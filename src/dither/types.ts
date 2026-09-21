@@ -25,6 +25,11 @@ export type Settings = {
   /* ---- colour ---- */
   palette: string;
   paletteInvert: boolean;
+  /** The stops of the user's own ramp, dark to light, as hex. Part of the
+      settings rather than component state so a shared link carries the
+      colours — a link to a look that arrives in the wrong colours is not a
+      link to the look. */
+  custom: string[];
 
   /* ---- motion, layered: every one of these is independent and 0 means off --- */
   drift: number; // mask travel, tiles per loop
@@ -83,6 +88,7 @@ export const DEFAULTS: Settings = {
   spread: 100,
   palette: "mono",
   paletteInvert: false,
+  custom: ["#1B2A1F", "#8FA37A", "#F2EDDF"],
   drift: 1,
   driftAngle: 135,
   wave: 0,

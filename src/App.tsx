@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPalette,
   buildSourcePalette,
+  CUSTOM_PALETTE,
+  extractRamp,
   MAX_SOURCE_LEVELS,
   PALETTES,
   SOURCE_PALETTE,
@@ -221,9 +223,12 @@ function App() {
   // the two do not match.
   const palette = useMemo(() => {
     if (view.colour) return buildSourcePalette(view.levels);
-    const p = PALETTES.find((x) => x.id === settings.palette) ?? PALETTES[0];
-    return buildPalette(p.ramp, Math.max(2, view.levels), settings.paletteInvert);
-  }, [settings.palette, settings.paletteInvert, view.colour, view.levels]);
+    const ramp =
+      settings.palette === CUSTOM_PALETTE
+        ? settings.custom
+        : (PALETTES.find((x) => x.id === settings.palette) ?? PALETTES[0]).ramp;
+    return buildPalette(ramp, Math.max(2, view.levels), settings.paletteInvert);
+  }, [settings.palette, settings.custom, settings.paletteInvert, view.colour, view.levels]);
 
   /* ---- playback ------------------------------------------------------------ */
 
@@ -317,6 +322,16 @@ function App() {
     } else {
       set({ palette: id });
     }
+  };
+
+  /** Seed the custom ramp from the photograph, and switch to it — asking for
+      the image's colours and then having to go and turn them on would be two
+      steps for one intention. */
+  const rampFromImage = () => {
+    if (!source) return;
+    const stops = extractRamp(source.rgb, Math.max(3, Math.min(5, settings.levels)));
+    jump({ ...settings, custom: stops, palette: CUSTOM_PALETTE });
+    setToast("Ramp taken from the image");
   };
 
   const applyPreset = (p: Preset) => {
@@ -466,6 +481,7 @@ function App() {
             settings={settings}
             set={set}
             onPalette={choosePalette}
+            onFromImage={rampFromImage}
             source={source}
             sourceLabel={`${loaded?.width ?? 0}×${loaded?.height ?? 0}`}
           />
