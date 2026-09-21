@@ -1,4 +1,4 @@
-# dither.loop
+# dither.studio
 
 Turn an image into a looping dither animation, in the browser. Upload a
 picture, choose how it breaks into dots, choose how those dots move, export a

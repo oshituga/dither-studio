@@ -83,7 +83,7 @@ export function MobileWall() {
       <div className="flex flex-col items-center gap-3">
         <span className="flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.1em] text-text">
           <span className="h-[6px] w-[6px] bg-accent" />
-          dither<span className="text-dim">.loop</span>
+          dither<span className="text-dim">.studio</span>
         </span>
         <h1 className="max-w-[24ch] text-[19px] font-medium leading-[1.25] tracking-[-0.02em] text-text">
           This one wants a bigger screen.

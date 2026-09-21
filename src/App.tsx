@@ -314,7 +314,7 @@ function App() {
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.1em] text-text">
             <span className="h-[6px] w-[6px] bg-accent" />
-            dither<span className="text-dim">.loop</span>
+            dither<span className="text-dim">.studio</span>
           </span>
           <span className="h-[14px] w-px bg-line" />
           <span className="value truncate text-dim">{loaded?.name}</span>
