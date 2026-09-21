@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* One curve, one duration. Everything in here is a control responding to a
+     pointer, and a control that takes longer than about 180ms to acknowledge a
+     press feels broken rather than smooth. */
+  --ease: cubic-bezier(0.2, 0.6, 0.35, 1);
+  --r: 3px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: theme("colors.void");
+  color: theme("colors.text");
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: theme("colors.accent");
+  color: #0a0a0b;
+}
+
+/* ---- type -----------------------------------------------------------------
+   Two voices. The grotesk carries anything that is read as language; the mono
+   carries anything that is read as a value. Keeping numbers in a monospace is
+   not decoration — a figure that changes width as it counts makes a slider
+   feel loose under the hand. */
+
+.label {
+  font-family: theme("fontFamily.mono");
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: theme("colors.dim");
+}
+
+.value {
+  font-family: theme("fontFamily.mono");
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: theme("colors.text");
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: fit-content;
+  white-space: nowrap;
+  border-radius: var(--r);
+  padding: 9px 14px;
+  font-family: theme("fontFamily.mono");
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    background-color 160ms var(--ease),
+    color 160ms var(--ease),
+    border-color 160ms var(--ease);
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn--accent {
+  background: theme("colors.accent");
+  color: #0a0a0b;
+}
+
+.btn--accent:hover:not(:disabled) {
+  background: theme("colors.accent-hover");
+}
+
+.btn--ghost {
+  background: transparent;
+  color: theme("colors.dim");
+  box-shadow: inset 0 0 0 1px theme("colors.line");
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: theme("colors.raised");
+  color: theme("colors.text");
+}
+
+/* ---- range ----------------------------------------------------------------
+   A 2px rail with a square thumb. The native control is rounded, chrome-blue
+   and instantly recognisable as a default, and there are twenty of them on
+   this screen. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    theme("colors.accent") var(--fill, 0%),
+    theme("colors.line") var(--fill, 0%)
+  );
+}
+
+input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    theme("colors.accent") var(--fill, 0%),
+    theme("colors.line") var(--fill, 0%)
+  );
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 3px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 1px;
+  background: theme("colors.text");
+  transition: height 140ms var(--ease);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:active::-webkit-slider-thumb {
+  height: 20px;
+  margin-top: -9px;
+  background: theme("colors.accent");
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 3px;
+  height: 14px;
+  border: 0;
+  border-radius: 1px;
+  background: theme("colors.text");
+}
+
+:focus-visible {
+  outline: 1px solid theme("colors.accent");
+  outline-offset: 2px;
+}
+
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: theme("colors.line") transparent;
+}
+
+.panel-scroll::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: theme("colors.line");
+  border: 3px solid theme("colors.panel");
+  border-radius: 99px;
+}
+
+.panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* One entrance, three delays. The chrome arrives, the stage arrives just
+   behind it, the rail last — so the tool assembles rather than appearing, and
+   the eye is already on the image by the time the controls land. */
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

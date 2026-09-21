@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>dither.loop — turn an image into a looping dither</title>
+    <meta
+      name="description"
+      content="Upload an image, dither it, animate it, export a loop as GIF, video or a sprite sheet. Runs entirely in the browser — nothing is uploaded."
+    />
+    <meta name="theme-color" content="#FFFCF8" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+
+    <meta property="og:title" content="dither.loop" />
+    <meta
+      property="og:description"
+      content="Turn an image into a looping dither animation. Nothing is uploaded."
+    />
+    <meta property="og:type" content="website" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Two families, three weights between them. A variable-axis download for an
+         interface that uses two weights is bytes spent on nothing. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
