@@ -14,6 +14,7 @@ import { prepareSource } from "./dither/render";
 import { drawSamplePlate } from "./dither/sample";
 import { ALGORITHMS, DEFAULTS, type Settings } from "./dither/types";
 import { decode, encode } from "./state/url";
+import { canRunOnGpu, GpuDither } from "./gpu/renderer";
 import { useFrames, useSource } from "./state/useFrames";
 import { useTheme } from "./state/useTheme";
 import { SimplePanel } from "./ui/SimplePanel";
@@ -256,6 +257,32 @@ function App() {
   // meaningful against the table it was quantised into, and during the
   // handful of frames between moving the Tones slider and the rebake landing,
   // the two do not match.
+  /* The live preview.
+     The CPU bakes a whole loop before anything moves, which is right for
+     export and wrong for a hand on a slider. This draws the frame being looked
+     at, now, at any grid size — and only until the bake lands, at which point
+     the picture goes back to being the CPU's. So what anybody settles on, and
+     what leaves in a file, is always the exact one.
+
+     Stills only: a clip would need its own frame reduced per loop position,
+     which is the expensive work this is trying to stay ahead of. Ordered
+     kernels only: error diffusion cannot be done in a fragment shader, and
+     grain cannot be done in single precision. */
+  const gpu = useMemo(() => GpuDither.create(), []);
+  const oneFrameClip = (loaded?.images.length ?? 1) === 1;
+  const liveGpu =
+    Boolean(gpu) && oneFrameClip && canRunOnGpu(settings) && progress < 1 && Boolean(source);
+
+  /* What the stage is showing, in pixels.
+     The settled bake first, and the prepared source whenever there is not one
+     yet. Sizing from the bake alone collapses the stage to a single pixel for
+     the first moments after every change — which is most of a slider drag, and
+     is exactly the window the live preview exists to fill. The source knows the
+     grid the moment the settings do, and the two always agree once both
+     exist. */
+  const showW = view.width || source?.width || 1;
+  const showH = view.height || source?.height || 1;
+
   const palette = useMemo(() => {
     if (view.colour) return buildSourcePalette(view.levels);
     const ramp =
@@ -264,6 +291,18 @@ function App() {
         : (PALETTES.find((x) => x.id === settings.palette) ?? PALETTES[0]).ramp;
     return buildPalette(ramp, Math.max(2, view.levels), settings.paletteInvert);
   }, [settings.palette, settings.custom, settings.paletteInvert, view.colour, view.levels]);
+
+  // The prepared grid only changes with these, so the texture upload is keyed
+  // on them rather than on every render.
+  const sourceKey = `${loaded?.name}:${source?.width}x${source?.height}:${settings.detail}`;
+
+  useEffect(() => {
+    if (!liveGpu || !gpu || !source) return;
+    const colour = settings.palette === SOURCE_PALETTE;
+    const levels = colour ? Math.min(MAX_SOURCE_LEVELS, settings.levels) : settings.levels;
+    const live = colour ? buildSourcePalette(levels) : palette;
+    gpu.render(source, sourceKey, settings, frame, levels, colour, live);
+  }, [liveGpu, gpu, source, sourceKey, settings, frame, palette]);
 
   /* ---- playback ------------------------------------------------------------ */
 
@@ -390,12 +429,15 @@ function App() {
   };
 
   const stat = [
-    `${view.width}×${view.height}`,
+    `${showW}×${showH}`,
     ALGORITHM_NAMES[settings.algorithm],
     view.colour ? `${view.levels ** 3} colours` : `${view.levels} tones`,
     `${settings.frames}f @ ${settings.fps}fps`,
+    liveGpu ? "gpu" : null,
     `${(settings.frames / settings.fps).toFixed(2)}s`,
-  ].join("  ·  ");
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-panel">
@@ -500,12 +542,13 @@ function App() {
         >
           <Stage
             indices={shown}
-            width={view.width || 1}
-            height={view.height || 1}
+            blit={liveGpu && gpu ? gpu.canvas : null}
+            width={showW}
+            height={showH}
             palette={palette}
             progress={loading !== null ? loading : progress}
             dragging={dragging}
-            label={`${view.width} × ${view.height} px`}
+            label={`${showW} × ${showH} px`}
             onPickFile={() => fileInput.current?.click()}
           />
           <Transport
@@ -587,8 +630,8 @@ function App() {
         open={exporting}
         onClose={() => setExporting(false)}
         frames={frames}
-        width={view.width || 1}
-        height={view.height || 1}
+        width={showW}
+        height={showH}
         palette={palette}
         settings={settings}
         currentFrame={Math.min(frame, Math.max(0, frames.length - 1))}

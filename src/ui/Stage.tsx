@@ -18,6 +18,7 @@ import type { RGB } from "../dither/palettes";
  */
 export function Stage({
   indices,
+  blit,
   width,
   height,
   palette,
@@ -27,6 +28,10 @@ export function Stage({
   onPickFile,
 }: {
   indices: Uint8Array | null;
+  /** A canvas to show instead of the baked frame — the live GPU preview. When
+      it is null the stage is showing the CPU's own frames, which are the ones
+      that get exported. */
+  blit: HTMLCanvasElement | null;
   width: number;
   height: number;
   palette: RGB[];
@@ -40,7 +45,18 @@ export function Stage({
 
   useEffect(() => {
     const c = canvas.current;
-    if (!c || !indices || !width || !height) return;
+    if (!c || !width || !height) return;
+    if (blit) {
+      if (c.width !== width || c.height !== height) {
+        c.width = width;
+        c.height = height;
+      }
+      const ctx = c.getContext("2d")!;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(blit, 0, 0, width, height);
+      return;
+    }
+    if (!indices) return;
     if (c.width !== width || c.height !== height) {
       c.width = width;
       c.height = height;
@@ -54,7 +70,7 @@ export function Stage({
     }
     paint(indices, palette, width, height, image.current);
     c.getContext("2d")!.putImageData(image.current, 0, 0);
-  }, [indices, width, height, palette]);
+  }, [indices, blit, width, height, palette]);
 
   return (
     <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[3px] bg-void">
