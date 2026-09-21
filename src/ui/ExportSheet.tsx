@@ -26,6 +26,7 @@ export function ExportSheet({
   palette,
   settings,
   currentFrame,
+  ready,
   onToast,
 }: {
   open: boolean;
@@ -36,6 +37,10 @@ export function ExportSheet({
   palette: RGB[];
   settings: Settings;
   currentFrame: number;
+  /** False while frames are still baking. Exporting then would write a loop
+      that is missing its ending — silently, and only visible once the file is
+      open somewhere else. */
+  ready: boolean;
   onToast: (message: string) => void;
 }) {
   const [format, setFormat] = useState<Format>("gif");
@@ -209,9 +214,13 @@ export function ExportSheet({
               type="button"
               className="btn btn--accent flex-1"
               onClick={run}
-              disabled={busy || frames.length === 0}
+              disabled={busy || !ready || frames.length === 0}
             >
-              {busy ? `${Math.round(progress * 100)}%` : `Save ${format === "png" ? "still" : "loop"}`}
+              {busy
+                ? `${Math.round(progress * 100)}%`
+                : !ready
+                  ? "Baking frames…"
+                  : `Save ${format === "png" ? "still" : "loop"}`}
             </button>
             <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>
               Cancel

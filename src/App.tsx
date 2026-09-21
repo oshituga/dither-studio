@@ -238,7 +238,10 @@ function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = (e.target as HTMLElement)?.tagName === "INPUT";
+      const el = e.target as HTMLElement | null;
+      const range = el?.tagName === "INPUT" && (el as HTMLInputElement).type === "range";
+      const typing = (el?.tagName === "INPUT" && !range) || el?.isContentEditable === true;
+
       if (e.metaKey || e.ctrlKey) {
         if (e.key.toLowerCase() === "z") {
           e.preventDefault();
@@ -247,6 +250,11 @@ function App() {
         return;
       }
       if (typing && e.key !== "Escape") return;
+      // A focused slider keeps its own arrows and space — nudging a value is
+      // what those keys mean while a slider has the focus. Every other
+      // shortcut still works, because the alternative is that touching one
+      // control silently disables the keyboard for the rest of the session.
+      if (range && (e.key === " " || e.key.startsWith("Arrow"))) return;
       if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
@@ -447,6 +455,7 @@ function App() {
         palette={palette}
         settings={settings}
         currentFrame={Math.min(frame, Math.max(0, frames.length - 1))}
+        ready={progress >= 1}
         onToast={setToast}
       />
 
