@@ -73,6 +73,7 @@ function renderKey(s: Settings): string {
     s.algorithm,
     s.levels,
     s.spread,
+    s.algorithm === "custom" ? s.kernel.join("") : "",
     s.drift,
     s.driftAngle,
     s.wave,

@@ -1,6 +1,15 @@
-import { bayer, blueNoise, clusterDot, hashNoise, ign, lineScreen, type Mask } from "./masks";
+import {
+  bayer,
+  blueNoise,
+  clusterDot,
+  hashNoise,
+  ign,
+  lineScreen,
+  paintedMask,
+  type Mask,
+} from "./masks";
 import type { RGB } from "./palettes";
-import type { AlgorithmId, Settings } from "./types";
+import type { Settings } from "./types";
 
 /**
  * The renderer.
@@ -146,8 +155,10 @@ function unsharp(lum: Float32Array, w: number, h: number, amount: number) {
   }
 }
 
-function maskFor(algorithm: AlgorithmId): Mask | null {
-  switch (algorithm) {
+function maskFor(settings: Settings): Mask | null {
+  switch (settings.algorithm) {
+    case "custom":
+      return paintedMask(settings.kernel);
     case "bayer2":
       return bayer(2);
     case "bayer4":
@@ -263,7 +274,7 @@ export function renderFrame(
   const TAU = Math.PI * 2;
   const phase = TAU * settings.cycles * t;
 
-  const mask = maskFor(settings.algorithm);
+  const mask = maskFor(settings);
   const diffusion = DIFFUSION[settings.algorithm];
 
   /* ---- motion terms, all resolved once per frame ---- */

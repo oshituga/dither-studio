@@ -1,5 +1,7 @@
 import { MAX_SOURCE_LEVELS, SOURCE_PALETTE } from "../dither/palettes";
+import { useState } from "react";
 import { ColourSection } from "./ColourSection";
+import { KernelEditor } from "./KernelEditor";
 import type { Source } from "../dither/render";
 import { ALGORITHMS, type Settings } from "../dither/types";
 import { Chips, Compass, Section, Slider, Toggle } from "./primitives";
@@ -36,6 +38,9 @@ export function Rail({
   sourceLabel: string;
 }) {
   const colour = settings.palette === SOURCE_PALETTE;
+  // The brush is a tool, not a setting: it says nothing about the picture, so
+  // it does not belong in the settings or in a shared link.
+  const [brush, setBrush] = useState(0);
   const motion = (
     label: string,
     key: keyof Settings,
@@ -129,6 +134,14 @@ export function Rail({
         <p className="text-[11px] leading-[15px] tracking-[-0.01em] text-dim">
           {ALGORITHMS.find((a) => a.id === settings.algorithm)?.note}
         </p>
+        {settings.algorithm === "custom" && (
+          <KernelEditor
+            kernel={settings.kernel}
+            brush={brush}
+            onBrush={setBrush}
+            onChange={(kernel) => set({ kernel })}
+          />
+        )}
         <Slider
           label={colour ? "Steps per channel" : "Tones"}
           value={settings.levels}

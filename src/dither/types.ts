@@ -21,6 +21,10 @@ export type Settings = {
   levels: number;
   /** Threshold strength, 0..200%. 100 is the textbook value. */
   spread: number;
+  /** The painted threshold matrix, 64 values of 0..35, used when the algorithm
+      is "custom". Part of the settings so a link carries the kernel: a look
+      built on a matrix somebody drew is not reproducible without it. */
+  kernel: number[];
 
   /* ---- colour ---- */
   palette: string;
@@ -66,7 +70,8 @@ export type AlgorithmId =
   | "grain"
   | "floyd"
   | "atkinson"
-  | "sierra";
+  | "sierra"
+  | "custom";
 
 export const ALGORITHMS: { id: AlgorithmId; name: string; note: string }[] = [
   { id: "bayer4", name: "Bayer 4", note: "The crosshatch everyone knows" },
@@ -79,6 +84,7 @@ export const ALGORITHMS: { id: AlgorithmId; name: string; note: string }[] = [
   { id: "floyd", name: "Floyd–Steinberg", note: "Error diffusion, classic" },
   { id: "atkinson", name: "Atkinson", note: "Early Mac, blown highlights" },
   { id: "sierra", name: "Sierra Lite", note: "Crisper diffusion" },
+  { id: "custom", name: "Draw your own", note: "Paint the threshold matrix yourself" },
 ];
 
 export const DEFAULTS: Settings = {
@@ -91,6 +97,14 @@ export const DEFAULTS: Settings = {
   algorithm: "bayer4",
   levels: 2,
   spread: 100,
+  // Bayer 8 as the starting point, so the editor opens on something that works
+  // and is recognisable rather than on an empty grid.
+  kernel: [
+    0, 18, 5, 23, 1, 19, 6, 24, 27, 9, 32, 14, 28, 10, 33, 15, 7, 25, 2, 20, 8,
+    26, 3, 21, 34, 16, 29, 11, 35, 17, 30, 12, 1, 20, 6, 24, 0, 18, 5, 23, 29,
+    11, 33, 15, 27, 9, 32, 14, 8, 26, 3, 21, 7, 25, 2, 20, 35, 17, 30, 12, 34,
+    16, 29, 11,
+  ],
   palette: "mono",
   paletteInvert: false,
   custom: ["#1B2A1F", "#8FA37A", "#F2EDDF"],

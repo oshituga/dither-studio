@@ -234,6 +234,23 @@ export function blueNoise(n = 64): Mask {
 }
 
 /**
+ * A mask from painted values.
+ *
+ * Not cached by content — the whole point is that it changes while a finger is
+ * on it — but building one is 64 divisions, so there is nothing to cache.
+ * Values arrive as 0..35 because that is one base-36 character each in a
+ * shareable link, and 36 levels of threshold is finer than the eye can follow
+ * across an 8x8 tile.
+ */
+export function paintedMask(values: number[], size = 8): Mask {
+  const data = new Float32Array(size * size);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = Math.min(35, Math.max(0, values[i] ?? 0)) / 36;
+  }
+  return { size, data };
+}
+
+/**
  * Interleaved gradient noise (Jimenez, 2014).
  *
  * Not a tile — it is evaluated per pixel — so it is exposed as a function
