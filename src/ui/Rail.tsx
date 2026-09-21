@@ -1,11 +1,5 @@
-import {
-  buildPalette,
-  CUSTOM_PALETTE,
-  MAX_SOURCE_LEVELS,
-  PALETTES,
-  SOURCE_PALETTE,
-} from "../dither/palettes";
-import { CustomRamp } from "./CustomRamp";
+import { MAX_SOURCE_LEVELS, SOURCE_PALETTE } from "../dither/palettes";
+import { ColourSection } from "./ColourSection";
 import type { Source } from "../dither/render";
 import { ALGORITHMS, type Settings } from "../dither/types";
 import { Chips, Compass, Section, Slider, Toggle } from "./primitives";
@@ -30,6 +24,7 @@ export function Rail({
   onPalette,
   onFromImage,
   source,
+  theme,
   sourceLabel,
 }: {
   settings: Settings;
@@ -37,6 +32,7 @@ export function Rail({
   onPalette: (id: string) => void;
   onFromImage: () => void;
   source: Source | null;
+  theme: string;
   sourceLabel: string;
 }) {
   const colour = settings.palette === SOURCE_PALETTE;
@@ -92,7 +88,7 @@ export function Rail({
       </Section>
 
       <Section title="Tone">
-        <Scope source={source} settings={settings} levels={settings.levels} />
+        <Scope source={source} settings={settings} levels={settings.levels} theme={theme} />
         <Slider
           label="Exposure"
           value={settings.exposure}
@@ -157,85 +153,13 @@ export function Rail({
       </Section>
 
       <Section title="Colour">
-        <button
-          type="button"
-          onClick={() => onPalette(SOURCE_PALETTE)}
-          className={`flex items-center gap-2 rounded-[2px] p-2 text-left transition-colors duration-150 ${
-            colour ? "bg-accent" : "bg-raised hover:bg-raised-hover"
-          }`}
-          style={{ transitionTimingFunction: "var(--ease)" }}
-        >
-          <span
-            className="h-[14px] w-[14px] shrink-0 rounded-[1px]"
-            style={{
-              background:
-                "conic-gradient(#ff0040, #ffd400, #22dd55, #00c8ff, #6a4bff, #ff0040)",
-            }}
-          />
-          <span
-            className={`text-[11px] font-medium tracking-[-0.01em] ${
-              colour ? "text-void" : "text-text"
-            }`}
-          >
-            Keep the image's own colour
-          </span>
-        </button>
-        <CustomRamp
-          stops={settings.custom}
-          levels={settings.levels}
-          invert={settings.paletteInvert}
-          active={settings.palette === CUSTOM_PALETTE}
-          onChange={(custom) => set({ custom })}
-          onActivate={() => onPalette(CUSTOM_PALETTE)}
+        <ColourSection
+          settings={settings}
+          set={set}
+          onPalette={onPalette}
           onFromImage={onFromImage}
           canExtract={Boolean(source)}
         />
-
-        <div className="grid grid-cols-2 gap-px">
-          {PALETTES.map((p) => {
-            const active = p.id === settings.palette;
-            const swatch = buildPalette(
-              p.ramp,
-              Math.max(3, settings.levels),
-              settings.paletteInvert,
-            );
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => onPalette(p.id)}
-                className={`flex items-center gap-2 rounded-[2px] p-1.5 text-left transition-colors duration-150 ${
-                  active ? "bg-accent" : "bg-raised hover:bg-raised-hover"
-                }`}
-                style={{ transitionTimingFunction: "var(--ease)" }}
-              >
-                <span className="flex h-[14px] w-[14px] shrink-0 overflow-hidden rounded-[1px]">
-                  {swatch.map((c, i) => (
-                    <span
-                      key={i}
-                      className="h-full flex-1"
-                      style={{ background: `rgb(${c[0]},${c[1]},${c[2]})` }}
-                    />
-                  ))}
-                </span>
-                <span
-                  className={`truncate text-[11px] font-medium tracking-[-0.01em] ${
-                    active ? "text-void" : "text-dim"
-                  }`}
-                >
-                  {p.name}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {!colour && (
-          <Toggle
-            label="Flip light and dark"
-            checked={settings.paletteInvert}
-            onChange={(v) => set({ paletteInvert: v })}
-          />
-        )}
       </Section>
 
       <Section title="Motion" right={<span className="value text-dim">{settings.cycles}× / loop</span>}>
@@ -284,6 +208,15 @@ export function Rail({
           min={1}
           max={6}
           onChange={(v) => set({ cycles: v })}
+        />
+        <Slider
+          label="All motion"
+          value={settings.motionScale}
+          min={0}
+          max={200}
+          suffix="%"
+          active={settings.motionScale !== 100}
+          onChange={(v) => set({ motionScale: v })}
         />
       </Section>
 

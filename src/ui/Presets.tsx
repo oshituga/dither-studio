@@ -109,7 +109,7 @@ function PresetCard({
       <div
         className="overflow-hidden rounded-[2px] transition-shadow duration-150"
         style={{
-          boxShadow: active ? "0 0 0 1px #FF9F1C" : "0 0 0 1px #2A1B0C",
+          boxShadow: active ? "0 0 0 1px rgb(var(--c-accent))" : "0 0 0 1px rgb(var(--c-line))",
           transitionTimingFunction: "var(--ease)",
         }}
       >

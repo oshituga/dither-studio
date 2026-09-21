@@ -20,10 +20,14 @@ export function Scope({
   source,
   settings,
   levels,
+  theme,
 }: {
   source: Source | null;
   settings: Settings;
   levels: number;
+  /** Only a redraw trigger: the colours themselves are read from the document
+      below, but a canvas does not repaint because a variable changed. */
+  theme: string;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -39,6 +43,10 @@ export function Scope({
     ctx.clearRect(0, 0, W, H);
 
     if (!source) return;
+
+    // Canvas has no cascade, so the theme has to be read rather than inherited.
+    const css = getComputedStyle(document.documentElement);
+    const rgb = (name: string) => `rgb(${css.getPropertyValue(name).trim()})`;
 
     const bins = new Float32Array(W);
     const contrast = 1 + settings.contrast / 100;
@@ -59,19 +67,19 @@ export function Scope({
     const sorted = Array.from(bins).sort((a, b) => a - b);
     const top = sorted[Math.floor(sorted.length * 0.99)] || 1;
 
-    ctx.fillStyle = "#4A3D2E";
+    ctx.fillStyle = rgb("--scope-ink");
     for (let x = 0; x < W; x++) {
       const h = Math.min(1, bins[x] / top) * H;
       ctx.fillRect(x, H - h, 1, h);
     }
 
     // Level marks.
-    ctx.fillStyle = "#FF9F1C";
+    ctx.fillStyle = rgb("--c-accent");
     for (let i = 0; i < levels; i++) {
       const x = Math.round((i / (levels - 1)) * (W - 1));
       ctx.fillRect(x, 0, 1, H);
     }
-  }, [source, settings, levels]);
+  }, [source, settings, levels, theme]);
 
   return (
     <canvas

@@ -63,7 +63,7 @@ export function Stage({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(100% 80% at 50% 42%, rgba(255,159,28,0.10), rgba(20,12,8,0) 70%)",
+            "radial-gradient(100% 80% at 50% 42%, var(--stage-glow), var(--stage-fade) 70%)",
         }}
       />
 
@@ -87,7 +87,7 @@ export function Stage({
               // table, not a card in a stack, and a blurred edge under a
               // hard-edged dither is the one thing that would make this look
               // like a web page again.
-              boxShadow: "0 0 0 1px rgba(255,255,255,0.14), 0 30px 70px -30px rgba(0,0,0,0.9)",
+              boxShadow: "0 0 0 1px var(--plate-edge), 0 30px 70px -30px var(--plate-shadow)",
             }}
           />
           <Marks />
@@ -116,8 +116,8 @@ export function Stage({
           dragging ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         style={{
-          background: "rgba(20,12,8,0.86)",
-          boxShadow: "inset 0 0 0 1px #FF9F1C",
+          background: "rgb(var(--c-void) / 0.86)",
+          boxShadow: "inset 0 0 0 1px rgb(var(--c-accent))",
           transitionTimingFunction: "var(--ease)",
         }}
         tabIndex={dragging ? 0 : -1}
@@ -143,7 +143,7 @@ function Marks() {
         <span
           key={c}
           aria-hidden
-          className={`pointer-events-none absolute h-[10px] w-[10px] border-white/25 ${c}`}
+          className={`pointer-events-none absolute h-[10px] w-[10px] border-text/25 ${c}`}
         />
       ))}
     </>

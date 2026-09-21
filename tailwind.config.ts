@@ -20,28 +20,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        /* Sampled from shreygups.com/work/olive, which sets them as CSS
-           variables: --bg #140c08, --ink #fff6e8, --accent #ff9f1c,
-           --link #ffc8a0. A warm brown-black rather than a neutral one, which
-           is the whole difference — every dithered image on the stage picks up
-           the cast of what surrounds it, and a warm ground makes a
-           two-tone image read as a print rather than as a screenshot. */
-        void: "#140C08", // the stage and the page behind everything
-        panel: "#1A100A", // chrome, one step up from the stage
-        raised: "#241709", // controls at rest
-        "raised-hover": "#31200D",
-        line: "#2A1B0C", // the site's --line is 5% accent over bg; this is a
-        // touch stronger, because a control here has to
-        // survive being next to a photograph.
-        text: "#FFF6E8",
-        /* Muted is the ink at 45% over the background rather than a grey:
-           a neutral grey against this brown reads as dirty. */
-        dim: "#7E756D",
-        accent: "#FF9F1C",
-        "accent-hover": "#FFB347",
-        /* The site's --link. Used for figures, so numbers sit a half-step
-           warmer than the labels beside them. */
-        warm: "#FFC8A0",
+        /* Every colour is a CSS variable holding bare RGB channels, so the
+           whole interface flips by rewriting nine custom properties on <html>
+           rather than by carrying a second set of classes on every element.
+           The channels are bare (not `rgb(...)`) so Tailwind's opacity
+           modifiers — bg-accent/12 and friends — still work, which they cannot
+           against a var holding a finished colour.
+
+           Dark is the olive from shreygups.com/work/olive. Light is the same
+           hues turned over: the ground becomes the paper that palette's cream
+           implies, and the accent holds its place in both because amber is
+           legible on warm dark AND warm light, which is most of why it was
+           the right accent to take. */
+        void: "rgb(var(--c-void) / <alpha-value>)",
+        panel: "rgb(var(--c-panel) / <alpha-value>)",
+        raised: "rgb(var(--c-raised) / <alpha-value>)",
+        "raised-hover": "rgb(var(--c-raised-hover) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        text: "rgb(var(--c-text) / <alpha-value>)",
+        dim: "rgb(var(--c-dim) / <alpha-value>)",
+        accent: "rgb(var(--c-accent) / <alpha-value>)",
+        "accent-hover": "rgb(var(--c-accent-hover) / <alpha-value>)",
+        warm: "rgb(var(--c-warm) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["'Inter Tight'", "system-ui", "sans-serif"],

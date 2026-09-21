@@ -54,7 +54,7 @@ export function CustomRamp({
   return (
     <div
       className={`rounded-[2px] p-2 transition-colors duration-150 ${
-        active ? "bg-accent/12 shadow-[inset_0_0_0_1px_#FF9F1C]" : "bg-raised"
+        active ? "bg-accent/12 shadow-[inset_0_0_0_1px_rgb(var(--c-accent))]" : "bg-raised"
       }`}
       style={{ transitionTimingFunction: "var(--ease)" }}
     >
@@ -91,7 +91,7 @@ export function CustomRamp({
                 if (!active) onActivate();
               }}
               className="h-[26px] w-[26px] cursor-pointer appearance-none rounded-[2px] border-0 bg-transparent p-0"
-              style={{ boxShadow: "inset 0 0 0 1px rgba(255,246,232,0.18)" }}
+              style={{ boxShadow: "inset 0 0 0 1px rgb(var(--c-text) / 0.2)" }}
             />
             {stops.length > 2 && (
               <button
@@ -112,7 +112,7 @@ export function CustomRamp({
             onClick={add}
             aria-label="Add a colour stop"
             className="h-[26px] w-[26px] rounded-[2px] text-[14px] leading-none text-dim transition-colors duration-150 hover:text-accent"
-            style={{ boxShadow: "inset 0 0 0 1px #2A1B0C" }}
+            style={{ boxShadow: "inset 0 0 0 1px rgb(var(--c-line))" }}
           >
             +
           </button>
@@ -124,7 +124,7 @@ export function CustomRamp({
         disabled={!canExtract}
         onClick={onFromImage}
         className="mt-2 w-full rounded-[2px] py-[6px] font-mono text-[10px] uppercase tracking-[0.08em] text-dim transition-colors duration-150 hover:text-accent disabled:opacity-40"
-        style={{ boxShadow: "inset 0 0 0 1px #2A1B0C" }}
+        style={{ boxShadow: "inset 0 0 0 1px rgb(var(--c-line))" }}
       >
         Take the colours from the image
       </button>

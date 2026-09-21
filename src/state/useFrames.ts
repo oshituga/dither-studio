@@ -84,6 +84,7 @@ function renderKey(s: Settings): string {
     s.scan,
     s.shimmer,
     s.cycles,
+    s.motionScale,
     s.frames,
     // Colour changes what an index MEANS, so it belongs in the render key even
     // though the other palette choices deliberately do not.

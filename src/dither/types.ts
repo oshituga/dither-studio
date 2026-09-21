@@ -45,6 +45,11 @@ export type Settings = {
   /** How many times each periodic motion repeats over one loop. Integer, so
       the loop is seamless by construction rather than by eye. */
   cycles: number;
+  /** A multiplier over every motion above, 0..200%. It exists so one slider
+      can drive a whole look: the motions in a preset are balanced against each
+      other, and someone who just wants "more of that" should not have to
+      rebalance seven numbers to get it. */
+  motionScale: number;
 
   /* ---- loop ---- */
   frames: number;
@@ -100,6 +105,7 @@ export const DEFAULTS: Settings = {
   scan: 0,
   shimmer: 0,
   cycles: 1,
+  motionScale: 100,
   frames: 24,
   fps: 12,
 };

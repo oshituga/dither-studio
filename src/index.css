@@ -2,13 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+:root[data-theme="dark"] {
   color-scheme: dark;
+
+  /* Olive, sampled from shreygups.com/work/olive. */
+  --c-void: 20 12 8;
+  --c-panel: 26 16 10;
+  --c-raised: 36 23 9;
+  --c-raised-hover: 49 32 13;
+  --c-line: 42 27 12;
+  --c-text: 255 246 232;
+  --c-dim: 126 117 109;
+  --c-accent: 255 159 28;
+  --c-accent-hover: 255 179 71;
+  --c-warm: 255 200 160;
+
+  /* What the stage is lit with. A warm bloom on dark, a cool shadow on light —
+     the two are not mirror images because a light room is lit from the whole
+     surface and a dark one from a source. */
+  --stage-glow: rgba(255, 159, 28, 0.1);
+  --stage-fade: rgba(20, 12, 8, 0);
+  --plate-edge: rgba(255, 246, 232, 0.14);
+  --plate-shadow: rgba(0, 0, 0, 0.9);
+  --scope-ink: 74 61 46;
   /* One curve, one duration. Everything in here is a control responding to a
      pointer, and a control that takes longer than about 180ms to acknowledge a
      press feels broken rather than smooth. */
   --ease: cubic-bezier(0.2, 0.6, 0.35, 1);
   --r: 3px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* The same palette turned over. Not white: a warm paper, because the accent
+     and every dithered image on the stage were chosen against warmth, and a
+     neutral white under them reads as a different product. */
+  --c-void: 242 237 223;
+  --c-panel: 250 246 236;
+  --c-raised: 233 226 209;
+  --c-raised-hover: 223 214 193;
+  --c-line: 216 207 188;
+  --c-text: 31 25 18;
+  --c-dim: 124 113 98;
+  --c-accent: 209 106 0;
+  --c-accent-hover: 176 88 0;
+  --c-warm: 140 96 46;
+
+  --stage-glow: rgba(31, 25, 18, 0.06);
+  --stage-fade: rgba(242, 237, 223, 0);
+  --plate-edge: rgba(31, 25, 18, 0.22);
+  --plate-shadow: rgba(60, 45, 25, 0.35);
+  --scope-ink: 189 178 157;
 }
 
 html,
@@ -27,7 +73,7 @@ body {
 
 ::selection {
   background: theme("colors.accent");
-  color: #140c08;
+  color: rgb(var(--c-panel));
 }
 
 /* ---- type -----------------------------------------------------------------
@@ -83,7 +129,9 @@ body {
 
 .btn--accent {
   background: theme("colors.accent");
-  color: #140c08;
+  /* The page colour, so the label is always a hole punched in the accent
+     rather than a second colour to choose. */
+  color: rgb(var(--c-panel));
 }
 
 .btn--accent:hover:not(:disabled) {

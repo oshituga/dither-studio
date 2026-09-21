@@ -14,6 +14,8 @@ import { drawSamplePlate } from "./dither/sample";
 import { ALGORITHMS, DEFAULTS, type Settings } from "./dither/types";
 import { decode, encode } from "./state/url";
 import { useFrames, useSource } from "./state/useFrames";
+import { useTheme } from "./state/useTheme";
+import { SimplePanel } from "./ui/SimplePanel";
 import { ExportSheet } from "./ui/ExportSheet";
 import { Presets } from "./ui/Presets";
 import { Rail } from "./ui/Rail";
@@ -59,6 +61,26 @@ function App() {
   const [playing, setPlaying] = useState(true);
   const [frame, setFrame] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [theme, setTheme] = useTheme();
+  /* Which panel is showing. Remembered per browser, deliberately not put in
+     the URL: it is how this person likes to work, not part of the look being
+     shared, and a link that reorganised the recipient's interface would be a
+     rude thing to send. */
+  const [full, setFull] = useState(() => {
+    try {
+      return localStorage.getItem("dither.panel") === "full";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dither.panel", full ? "full" : "simple");
+    } catch {
+      // Private browsing; the choice still holds for this session.
+    }
+  }, [full]);
   const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -385,6 +407,41 @@ function App() {
             className="hidden"
             onChange={(e) => e.target.files?.[0] && openFile(e.target.files[0])}
           />
+          <div className="mr-1.5 flex items-center gap-px rounded-[3px] bg-raised p-px">
+            {([false, true] as const).map((v) => (
+              <button
+                key={String(v)}
+                type="button"
+                onClick={() => setFull(v)}
+                className={`rounded-[2px] px-2.5 py-[6px] font-mono text-[10px] uppercase tracking-[0.08em] transition-colors duration-150 ${
+                  full === v ? "bg-accent text-panel" : "text-dim hover:text-text"
+                }`}
+                style={{ transitionTimingFunction: "var(--ease)" }}
+              >
+                {v ? "Full" : "Simple"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="btn btn--ghost !border-0 !shadow-none !px-2.5"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+            aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}
+          >
+            {theme === "dark" ? (
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <circle cx="7" cy="7" r="3" />
+                <path d="M7 .8v1.6M7 11.6v1.6M1.2 7h1.6M11.2 7h1.6M2.9 2.9l1.1 1.1M10 10l1.1 1.1M11.1 2.9 10 4M4 10l-1.1 1.1" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="currentColor">
+                <path d="M12.4 8.6A5.8 5.8 0 0 1 5.4 1.6 5.8 5.8 0 1 0 12.4 8.6Z" />
+              </svg>
+            )}
+          </button>
+
           <button
             type="button"
             className="btn btn--ghost !border-0 !shadow-none"
@@ -477,14 +534,25 @@ function App() {
           >
             <Presets source={thumbSource} activeId={activePreset} onApply={applyPreset} />
           </Section>
-          <Rail
-            settings={settings}
-            set={set}
-            onPalette={choosePalette}
-            onFromImage={rampFromImage}
-            source={source}
-            sourceLabel={`${loaded?.width ?? 0}×${loaded?.height ?? 0}`}
-          />
+          {full ? (
+            <Rail
+              settings={settings}
+              set={set}
+              onPalette={choosePalette}
+              onFromImage={rampFromImage}
+              source={source}
+              theme={theme}
+              sourceLabel={`${loaded?.width ?? 0}×${loaded?.height ?? 0}`}
+            />
+          ) : (
+            <SimplePanel
+              settings={settings}
+              set={set}
+              onPalette={choosePalette}
+              onFromImage={rampFromImage}
+              canExtract={Boolean(source)}
+            />
+          )}
         </aside>
       </main>
 

@@ -268,24 +268,28 @@ export function renderFrame(
 
   /* ---- motion terms, all resolved once per frame ---- */
 
+  // One multiplier over every motion below. Drift is scaled before it is
+  // rounded to whole tiles, so the loop stays seamless at any setting.
+  const m = Math.max(0, settings.motionScale) / 100;
+
   // Mask travel. Expressed in whole tiles per loop so the offset returns to
   // zero exactly when the loop does — a fractional speed would land the last
   // frame on a different phase of the grid and the loop would tick.
   const rad = (settings.driftAngle * Math.PI) / 180;
-  const tilesX = Math.round(settings.drift * Math.cos(rad));
-  const tilesY = Math.round(settings.drift * Math.sin(rad));
+  const tilesX = Math.round(settings.drift * m * Math.cos(rad));
+  const tilesY = Math.round(settings.drift * m * Math.sin(rad));
   const maskSize = mask ? mask.size : 1;
   const offX = Math.round(t * tilesX * maskSize);
   const offY = Math.round(t * tilesY * maskSize);
 
-  const waveAmp = (settings.wave / 100) * (w * 0.08);
+  const waveAmp = ((settings.wave * m) / 100) * (w * 0.08);
   const waveLen = Math.max(4, settings.waveScale);
-  const rippleAmp = (settings.ripple / 100) * (w * 0.06);
+  const rippleAmp = ((settings.ripple * m) / 100) * (w * 0.06);
   const rippleLen = Math.max(4, settings.rippleScale);
-  const swirlAmp = (settings.swirl / 100) * 0.9;
-  const pulseAmp = (settings.pulse / 100) * 0.35;
-  const scanAmp = (settings.scan / 100) * 0.55;
-  const shimmerAmp = (settings.shimmer / 100) * 0.5;
+  const swirlAmp = ((settings.swirl * m) / 100) * 0.9;
+  const pulseAmp = ((settings.pulse * m) / 100) * 0.35;
+  const scanAmp = ((settings.scan * m) / 100) * 0.55;
+  const shimmerAmp = ((settings.shimmer * m) / 100) * 0.5;
 
   const warping = waveAmp > 0 || rippleAmp > 0 || swirlAmp > 0;
   const cx = (w - 1) / 2;

@@ -51,7 +51,7 @@ const Thumb = memo(function Thumb({
         style={{
           imageRendering: "pixelated",
           opacity: active ? 1 : 0.42,
-          boxShadow: active ? "0 0 0 1px #FF9F1C" : "0 0 0 1px #2A1B0C",
+          boxShadow: active ? "0 0 0 1px rgb(var(--c-accent))" : "0 0 0 1px rgb(var(--c-line))",
           transitionTimingFunction: "var(--ease)",
         }}
       />
@@ -162,7 +162,7 @@ export function Transport({
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-1/2 h-[7px] -translate-y-1/2 opacity-45"
           style={{
-            backgroundImage: "linear-gradient(90deg, #2A1B0C 1px, transparent 1px)",
+            backgroundImage: "linear-gradient(90deg, rgb(var(--c-line)) 1px, transparent 1px)",
             backgroundSize: `${100 / ticks}% 100%`,
           }}
         />
