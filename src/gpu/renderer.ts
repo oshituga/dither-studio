@@ -36,7 +36,17 @@ const ORDERED: AlgorithmId[] = [
 ];
 
 export function canRunOnGpu(settings: Settings): boolean {
-  return ORDERED.includes(settings.algorithm);
+  // The effects and the glyph renderer live on the CPU only. Rather than let
+  // the preview show something the export will not produce, the GPU stands
+  // down whenever one of them is in play — a slower preview is a fair price
+  // for never lying about the result.
+  const effects =
+    settings.bloom > 0 ||
+    settings.vignette > 0 ||
+    settings.scanlines > 0 ||
+    settings.chromatic > 0 ||
+    settings.ascii;
+  return !effects && ORDERED.includes(settings.algorithm);
 }
 
 function maskFor(settings: Settings): Mask | null {

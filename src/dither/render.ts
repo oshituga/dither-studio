@@ -30,6 +30,9 @@ export type Source = {
   height: number;
   /** Luminance, 0..1, at working resolution. */
   lum: Float32Array;
+  /** A heavily blurred copy of the luminance, for bloom. Built only when it is
+      asked for — it is a second full-size buffer and most looks never use it. */
+  glow?: Float32Array;
   /** The same pixels as RGB, 0..1, interleaved. Kept alongside luminance
       rather than derived on demand: the colour path needs all three channels
       per pixel per frame, and the scope and every ramp palette need the single
@@ -118,7 +121,15 @@ export function prepareSource(
     }
   }
 
-  return { width: w, height: h, lum, rgb };
+  let glow: Float32Array | undefined;
+  if (settings.bloom > 0) {
+    glow = lum.slice();
+    // Wide and cheap: bloom is a halo, so the radius matters and the exact
+    // falloff does not.
+    for (let i = 0; i < 3; i++) boxBlur(glow, w, h, 3);
+  }
+
+  return { width: w, height: h, lum, rgb, glow };
 }
 
 /**
@@ -152,6 +163,27 @@ function unsharp(lum: Float32Array, w: number, h: number, amount: number) {
   }
   for (let i = 0; i < lum.length; i++) {
     lum[i] = Math.min(1, Math.max(0, lum[i] + (lum[i] - blur[i]) * amount * 3));
+  }
+}
+
+/** A separable box blur, run a few times because three boxes approximate a
+    gaussian closely enough for a glow and cost a fraction of one. */
+function boxBlur(data: Float32Array, w: number, h: number, r: number) {
+  const tmp = new Float32Array(data.length);
+  const span = r * 2 + 1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      for (let d = -r; d <= r; d++) sum += data[y * w + Math.min(w - 1, Math.max(0, x + d))];
+      tmp[y * w + x] = sum / span;
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) {
+      let sum = 0;
+      for (let d = -r; d <= r; d++) sum += tmp[Math.min(h - 1, Math.max(0, y + d)) * w + x];
+      data[y * w + x] = sum / span;
+    }
   }
 }
 
@@ -362,8 +394,26 @@ export function renderFrame(
   // image, because it writes the error back into pixels it has not reached yet.
   const work = diffusion ? new Float32Array(w * h) : null;
 
-  const tone = (v: number, y: number): number => {
+  const bloomAmt = (settings.bloom / 100) * 0.9;
+  const vignetteAmt = settings.vignette / 100;
+  const scanAmt = (settings.scanlines / 100) * 0.7;
+  const chromaAmt = (settings.chromatic / 100) * (w * 0.02);
+
+  const tone = (v: number, y: number, x = 0, i = -1): number => {
     let out = v;
+    if (bloomAmt > 0 && src.glow && i >= 0) {
+      // Screen rather than add: adding blows the highlights to a flat disc,
+      // screening lifts them and leaves the shape in them.
+      const g = src.glow[i] * bloomAmt;
+      out = 1 - (1 - out) * (1 - g);
+    }
+    if (vignetteAmt > 0) {
+      const dx = (x - cx) / (w * 0.5);
+      const dy = (y - cy) / (h * 0.5);
+      const r = Math.min(1, Math.hypot(dx, dy) / 1.414);
+      out *= 1 - vignetteAmt * r * r;
+    }
+    if (scanAmt > 0 && y % 2 === 1) out *= 1 - scanAmt;
     if (scanAmp > 0) {
       // A band sweeping down the frame, wrapping. The distance is measured on
       // a circle so the band crosses the bottom edge and reappears at the top
@@ -395,7 +445,23 @@ export function renderFrame(
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        if (warping) {
+        if (chromaAmt > 0) {
+          // Red pulled one way, blue the other, along the vector from centre —
+          // which is where a lens would put it.
+          const [wx, wy] = warping ? warpAt(x, y) : [x, y];
+          const dx = x - cx;
+          const dy = y - cy;
+          const r = Math.hypot(dx, dy) || 1;
+          const ox = (dx / r) * chromaAmt;
+          const oy = (dy / r) * chromaAmt;
+          const a: [number, number, number] = [0, 0, 0];
+          sample3(src.rgb, w, h, wx + ox, wy + oy, a);
+          px[0] = a[0];
+          sample3(src.rgb, w, h, wx, wy, a);
+          px[1] = a[1];
+          sample3(src.rgb, w, h, wx - ox, wy - oy, a);
+          px[2] = a[2];
+        } else if (warping) {
           const [sx, sy] = warpAt(x, y);
           sample3(src.rgb, w, h, sx, sy, px);
         } else {
@@ -407,9 +473,9 @@ export function renderFrame(
 
         if (work3) {
           const i = (y * w + x) * 3;
-          work3[i] = tone(px[0], y);
-          work3[i + 1] = tone(px[1], y);
-          work3[i + 2] = tone(px[2], y);
+          work3[i] = tone(px[0], y, x, y * w + x);
+          work3[i + 1] = tone(px[1], y, x, y * w + x);
+          work3[i + 2] = tone(px[2], y, x, y * w + x);
           continue;
         }
 
@@ -418,7 +484,7 @@ export function renderFrame(
         const bias = (th - 0.5) * cSpread * CL;
         let index = 0;
         for (let c = 0; c < 3; c++) {
-          const q = Math.min(CL, Math.max(0, Math.round((tone(px[c], y) + bias) * CL)));
+          const q = Math.min(CL, Math.max(0, Math.round((tone(px[c], y, x, y * w + x) + bias) * CL)));
           index = index * n + q;
         }
         indices[y * w + x] = index;
@@ -461,7 +527,7 @@ export function renderFrame(
       } else {
         v = lum[y * w + x];
       }
-      const toned = tone(v, y);
+      const toned = tone(v, y, x, y * w + x);
       if (work) work[y * w + x] = toned;
       else {
         let th = thresholdAt(x, y);

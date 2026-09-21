@@ -26,6 +26,26 @@ export type Settings = {
       built on a matrix somebody drew is not reproducible without it. */
   kernel: number[];
 
+  /* ---- effects, all applied BEFORE the threshold ----
+     That placement is the whole design. An effect applied after dithering
+     introduces colours the palette does not contain, which costs the GIF its
+     tiny colour table and costs the output its discipline. Applied before, the
+     result is still exactly N tones — the effect changes which pixels survive,
+     not what they are made of. */
+  bloom: number;
+  vignette: number;
+  scanlines: number;
+  chromatic: number;
+
+  /* ---- ascii ---- */
+  /** Draw glyphs instead of pixels. The dither still decides the tone of each
+      cell; this decides what gets drawn there. */
+  ascii: boolean;
+  asciiSet: string;
+  /** Pixels per character. Also the thing that decides whether it reads as a
+      terminal or as a texture. */
+  asciiCell: number;
+
   /* ---- colour ---- */
   palette: string;
   paletteInvert: boolean;
@@ -108,6 +128,13 @@ export const DEFAULTS: Settings = {
     11, 33, 15, 27, 9, 32, 14, 8, 26, 3, 21, 7, 25, 2, 20, 35, 17, 30, 12, 34,
     16, 29, 11,
   ],
+  bloom: 0,
+  vignette: 0,
+  scanlines: 0,
+  chromatic: 0,
+  ascii: false,
+  asciiSet: "blocks",
+  asciiCell: 10,
   palette: "mono",
   paletteInvert: false,
   custom: ["#1B2A1F", "#8FA37A", "#F2EDDF"],

@@ -1,6 +1,7 @@
 import { MAX_SOURCE_LEVELS, SOURCE_PALETTE } from "../dither/palettes";
 import { useState } from "react";
 import { ColourSection } from "./ColourSection";
+import { CHARSETS } from "../dither/ascii";
 import { KernelEditor } from "./KernelEditor";
 import type { Source } from "../dither/render";
 import { ALGORITHMS, type Settings } from "../dither/types";
@@ -167,6 +168,75 @@ export function Rail({
           suffix="%"
           onChange={(v) => set({ spread: v })}
         />
+      </Section>
+
+      <Section title="Effects">
+        <Slider
+          label="Bloom"
+          value={settings.bloom}
+          min={0}
+          max={100}
+          active={settings.bloom > 0}
+          onChange={(v) => set({ bloom: v })}
+        />
+        <Slider
+          label="Vignette"
+          value={settings.vignette}
+          min={0}
+          max={100}
+          active={settings.vignette > 0}
+          onChange={(v) => set({ vignette: v })}
+        />
+        <Slider
+          label="Scanlines"
+          value={settings.scanlines}
+          min={0}
+          max={100}
+          active={settings.scanlines > 0}
+          onChange={(v) => set({ scanlines: v })}
+        />
+        <Slider
+          label="Chromatic split"
+          value={settings.chromatic}
+          min={0}
+          max={100}
+          active={settings.chromatic > 0}
+          onChange={(v) => set({ chromatic: v })}
+        />
+        <p className="text-[11px] leading-[15px] tracking-[-0.01em] text-dim">
+          All four run before the threshold, so the result is still exactly the
+          tones you asked for — they change which pixels survive, not what they
+          are made of. Chromatic split needs the image's own colour.
+        </p>
+      </Section>
+
+      <Section title="ASCII">
+        <Toggle
+          label="Draw glyphs instead of pixels"
+          checked={settings.ascii}
+          onChange={(v) => set({ ascii: v })}
+        />
+        {settings.ascii && (
+          <>
+            <Chips
+              options={CHARSETS.map((c) => ({ value: c.id, label: c.name }))}
+              value={settings.asciiSet}
+              onChange={(v) => set({ asciiSet: v })}
+            />
+            <Slider
+              label="Character size"
+              value={settings.asciiCell}
+              min={4}
+              max={28}
+              suffix="px"
+              onChange={(v) => set({ asciiCell: v })}
+            />
+            <p className="text-[11px] leading-[15px] tracking-[-0.01em] text-dim">
+              The dither still decides the tone of every cell; this decides what
+              gets drawn there. More tones means a longer run of characters.
+            </p>
+          </>
+        )}
       </Section>
 
       <Section title="Colour">

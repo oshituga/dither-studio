@@ -14,6 +14,7 @@ import { prepareSource } from "./dither/render";
 import { drawSamplePlate } from "./dither/sample";
 import { ALGORITHMS, DEFAULTS, type Settings } from "./dither/types";
 import { decode, encode } from "./state/url";
+import { charsFor, renderAscii } from "./dither/ascii";
 import { canRunOnGpu, GpuDither } from "./gpu/renderer";
 import { useFrames, useSource } from "./state/useFrames";
 import { useTheme } from "./state/useTheme";
@@ -331,6 +332,26 @@ function App() {
   // than showing an empty stage.
   const shown = frames.length ? frames[Math.min(frame, frames.length - 1)] : null;
 
+  /* ASCII draws to its own canvas and the stage blits it, the same way the GPU
+     preview does — one path for "something else produced these pixels". */
+  const asciiCanvas = useRef<HTMLCanvasElement | null>(null);
+  const asciiFrame = useMemo(() => {
+    if (!settings.ascii || !shown || !view.width) return null;
+    asciiCanvas.current = renderAscii({
+      indices: shown,
+      width: view.width,
+      height: view.height,
+      levels: view.levels,
+      chars: charsFor(settings.asciiSet),
+      cell: settings.asciiCell,
+      palette,
+      target: asciiCanvas.current ?? undefined,
+    });
+    return asciiCanvas.current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.ascii, settings.asciiSet, settings.asciiCell, shown, view, palette]);
+
+
   /* ---- url ----------------------------------------------------------------- */
 
   useEffect(() => {
@@ -542,7 +563,7 @@ function App() {
         >
           <Stage
             indices={shown}
-            blit={liveGpu && gpu ? gpu.canvas : null}
+            blit={asciiFrame ?? (liveGpu && gpu ? gpu.canvas : null)}
             width={showW}
             height={showH}
             palette={palette}
@@ -636,6 +657,8 @@ function App() {
         settings={settings}
         currentFrame={Math.min(frame, Math.max(0, frames.length - 1))}
         ready={progress >= 1}
+        ascii={settings.ascii ? { chars: charsFor(settings.asciiSet), cell: settings.asciiCell } : null}
+        levels={view.levels}
         onToast={setToast}
       />
 
