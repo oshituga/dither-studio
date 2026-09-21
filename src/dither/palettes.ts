@@ -9,12 +9,42 @@
  * console palettes are known for, and nothing has to special-case the count.
  */
 
+export type RGB = [number, number, number];
+
 export type Palette = {
   id: string;
   name: string;
   /** Dark to light. Sampled, so two stops is a legitimate palette. */
   ramp: string[];
 };
+
+/** The id that means "do not replace the colours — quantise the ones already
+    there". Handled by the renderer rather than by a ramp, so it is a constant
+    here and not an entry in the list below. */
+export const SOURCE_PALETTE = "source";
+
+/** The largest number of steps per channel that still fits a GIF colour table:
+    6^3 is 216, and 7^3 would be 343. Not a rendering limit — a format one. */
+export const MAX_SOURCE_LEVELS = 6;
+
+/**
+ * Every colour a per-channel quantisation can produce, in the order the
+ * renderer indexes them: red major, then green, then blue. The table is
+ * levels^3 entries, which is why levels is capped at six here.
+ */
+export function buildSourcePalette(levels: number): RGB[] {
+  const n = Math.min(MAX_SOURCE_LEVELS, Math.max(2, levels));
+  const step = 255 / (n - 1);
+  const out: RGB[] = [];
+  for (let r = 0; r < n; r++) {
+    for (let g = 0; g < n; g++) {
+      for (let b = 0; b < n; b++) {
+        out.push([Math.round(r * step), Math.round(g * step), Math.round(b * step)]);
+      }
+    }
+  }
+  return out;
+}
 
 export const PALETTES: Palette[] = [
   // The site's own two colours. The default, because this tool is his.
@@ -29,8 +59,6 @@ export const PALETTES: Palette[] = [
   { id: "sepia", name: "Sepia", ramp: ["#2B1B10", "#A8754A", "#F4E4CE"] },
   { id: "vapour", name: "Vapour", ramp: ["#2B0B3F", "#D6008C", "#00E5FF", "#FFF5FB"] },
 ];
-
-export type RGB = [number, number, number];
 
 function hexToRgb(hex: string): RGB {
   const n = parseInt(hex.slice(1), 16);

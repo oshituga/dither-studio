@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SOURCE_PALETTE } from "../dither/palettes";
 import { prepareSource, renderFrame, type Source } from "../dither/render";
 import type { Settings } from "../dither/types";
 
@@ -43,7 +44,21 @@ export type Bake = {
   frames: Uint8Array[];
   /** 0..1. Below 1 the array is still filling, and every frame in it is real. */
   progress: number;
+  /* The dimensions and tone count these particular frames were rendered at.
+     They are carried with the frames rather than read from the live settings
+     because the two disagree for a few milliseconds every time a control
+     moves: the settings change instantly, the frames are rebaked over the next
+     several animation frames, and anything painting from the new width with
+     the old buffer walks off the end of the array — a half-drawn image, which
+     is what "the screen breaks" looks like. Painting from these is always
+     consistent, if briefly one step behind. */
+  width: number;
+  height: number;
+  levels: number;
+  colour: boolean;
 };
+
+const EMPTY: Bake = { frames: [], progress: 0, width: 0, height: 0, levels: 2, colour: false };
 
 /** The settings that change the pixels. Palette is not among them — recolouring
     repaints from the same indices, which is why the swatches feel instant. */
@@ -70,21 +85,27 @@ function renderKey(s: Settings): string {
     s.shimmer,
     s.cycles,
     s.frames,
+    // Colour changes what an index MEANS, so it belongs in the render key even
+    // though the other palette choices deliberately do not.
+    s.palette === SOURCE_PALETTE,
   ].join("|");
 }
 
 export function useFrames(source: Source | null, settings: Settings): Bake {
-  const [bake, setBake] = useState<Bake>({ frames: [], progress: 0 });
+  const [bake, setBake] = useState<Bake>(EMPTY);
   const key = renderKey(settings);
   const latest = useRef(key);
 
   useEffect(() => {
     latest.current = key;
     if (!source) {
-      setBake({ frames: [], progress: 0 });
+      setBake(EMPTY);
       return;
     }
 
+    const colour = settings.palette === SOURCE_PALETTE;
+    const levels = colour ? Math.min(6, settings.levels) : settings.levels;
+    const shape = { width: source.width, height: source.height, levels, colour };
     const total = settings.frames;
     const frames: Uint8Array[] = [];
     let cancelled = false;
@@ -97,11 +118,11 @@ export function useFrames(source: Source | null, settings: Settings): Bake {
       // and the compositor, so the slider under the pointer keeps up.
       const until = performance.now() + 10;
       do {
-        frames.push(renderFrame(source, settings, i, settings.levels));
+        frames.push(renderFrame(source, settings, i, levels, undefined, colour));
         i++;
       } while (i < total && performance.now() < until);
 
-      setBake({ frames: frames.slice(), progress: i / total });
+      setBake({ frames: frames.slice(), progress: i / total, ...shape });
       if (i < total) raf = requestAnimationFrame(tick);
     };
 

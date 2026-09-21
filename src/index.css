@@ -27,7 +27,7 @@ body {
 
 ::selection {
   background: theme("colors.accent");
-  color: #0a0a0b;
+  color: #140c08;
 }
 
 /* ---- type -----------------------------------------------------------------
@@ -50,7 +50,9 @@ body {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: theme("colors.text");
+  /* A half-step warmer than the labels beside them, so a row reads as
+     "name, then number" without a rule between the two. */
+  color: theme("colors.warm");
   font-variant-numeric: tabular-nums;
 }
 
@@ -81,7 +83,7 @@ body {
 
 .btn--accent {
   background: theme("colors.accent");
-  color: #0a0a0b;
+  color: #140c08;
 }
 
 .btn--accent:hover:not(:disabled) {

@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildPalette, PALETTES } from "./dither/palettes";
+import {
+  buildPalette,
+  buildSourcePalette,
+  MAX_SOURCE_LEVELS,
+  PALETTES,
+  SOURCE_PALETTE,
+} from "./dither/palettes";
 import { PRESETS, shuffle, type Preset } from "./dither/presets";
 import { prepareSource } from "./dither/render";
 import { drawSamplePlate } from "./dither/sample";
@@ -179,7 +185,22 @@ function App() {
   /* ---- render -------------------------------------------------------------- */
 
   const source = useSource(loaded?.image ?? null, loaded?.width ?? 0, loaded?.height ?? 0, settings);
-  const { frames, progress } = useFrames(source, settings);
+  const bake = useFrames(source, settings);
+
+  /* Hold the last loop that actually had frames in it.
+     A rebake starts empty and fills over the next few animation frames, so for
+     that moment the live bake has no frames and no dimensions — and anything
+     painting from it collapses: the stage loses its aspect ratio, the filmstrip
+     empties, the label reads 0 × 0. Dragging a slider is a continuous stream of
+     those moments, which is why it read as the screen breaking rather than as a
+     single flash. Showing the previous loop until the next one has a frame
+     costs one render of staleness and removes the flicker entirely. */
+  const settled = useRef(bake);
+  if (bake.frames.length > 0) settled.current = bake;
+  const view = bake.frames.length > 0 ? bake : settled.current;
+
+  const frames = view.frames;
+  const progress = bake.progress;
 
   // A separate, much smaller reduction for the contact sheet. Reusing the main
   // source would render twelve previews at full working resolution, which is
@@ -194,10 +215,15 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
 
+  // Built from the BAKE's tone count, never the live one. An index is only
+  // meaningful against the table it was quantised into, and during the
+  // handful of frames between moving the Tones slider and the rebake landing,
+  // the two do not match.
   const palette = useMemo(() => {
+    if (view.colour) return buildSourcePalette(view.levels);
     const p = PALETTES.find((x) => x.id === settings.palette) ?? PALETTES[0];
-    return buildPalette(p.ramp, settings.levels, settings.paletteInvert);
-  }, [settings.palette, settings.levels, settings.paletteInvert]);
+    return buildPalette(p.ramp, Math.max(2, view.levels), settings.paletteInvert);
+  }, [settings.palette, settings.paletteInvert, view.colour, view.levels]);
 
   /* ---- playback ------------------------------------------------------------ */
 
@@ -285,6 +311,14 @@ function App() {
   const activePreset =
     PRESETS.find((p) => JSON.stringify(p.settings) === JSON.stringify(settings))?.id ?? null;
 
+  const choosePalette = (id: string) => {
+    if (id === SOURCE_PALETTE) {
+      set({ palette: id, levels: Math.min(settings.levels, MAX_SOURCE_LEVELS) });
+    } else {
+      set({ palette: id });
+    }
+  };
+
   const applyPreset = (p: Preset) => {
     // The framing decisions the user has already made are theirs. A preset
     // changes the look, not the size of the grid or the length of the loop.
@@ -306,9 +340,9 @@ function App() {
   };
 
   const stat = [
-    `${source?.width ?? 0}×${source?.height ?? 0}`,
+    `${view.width}×${view.height}`,
     ALGORITHM_NAMES[settings.algorithm],
-    `${settings.levels} tones`,
+    view.colour ? `${view.levels ** 3} colours` : `${view.levels} tones`,
     `${settings.frames}f @ ${settings.fps}fps`,
     `${(settings.frames / settings.fps).toFixed(2)}s`,
   ].join("  ·  ");
@@ -378,12 +412,12 @@ function App() {
         >
           <Stage
             indices={shown}
-            width={source?.width ?? 1}
-            height={source?.height ?? 1}
+            width={view.width || 1}
+            height={view.height || 1}
             palette={palette}
             progress={progress}
             dragging={dragging}
-            label={`${source?.width ?? 0} × ${source?.height ?? 0} px`}
+            label={`${view.width} × ${view.height} px`}
             onPickFile={() => fileInput.current?.click()}
           />
           <Transport
@@ -394,11 +428,11 @@ function App() {
             fps={settings.fps}
             onSeek={setFrame}
           />
-          {source && frames.length > 1 && (
+          {view.width > 0 && frames.length > 1 && (
             <Filmstrip
               frames={frames}
-              width={source.width}
-              height={source.height}
+              width={view.width}
+              height={view.height}
               palette={palette}
               current={Math.min(frame, frames.length - 1)}
               onSeek={(i) => {
@@ -431,6 +465,7 @@ function App() {
           <Rail
             settings={settings}
             set={set}
+            onPalette={choosePalette}
             source={source}
             sourceLabel={`${loaded?.width ?? 0}×${loaded?.height ?? 0}`}
           />
@@ -450,8 +485,8 @@ function App() {
         open={exporting}
         onClose={() => setExporting(false)}
         frames={frames}
-        width={source?.width ?? 1}
-        height={source?.height ?? 1}
+        width={view.width || 1}
+        height={view.height || 1}
         palette={palette}
         settings={settings}
         currentFrame={Math.min(frame, Math.max(0, frames.length - 1))}

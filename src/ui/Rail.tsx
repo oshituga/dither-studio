@@ -1,4 +1,9 @@
-import { buildPalette, PALETTES } from "../dither/palettes";
+import {
+  buildPalette,
+  MAX_SOURCE_LEVELS,
+  PALETTES,
+  SOURCE_PALETTE,
+} from "../dither/palettes";
 import type { Source } from "../dither/render";
 import { ALGORITHMS, type Settings } from "../dither/types";
 import { Chips, Compass, Section, Slider, Toggle } from "./primitives";
@@ -20,14 +25,17 @@ import { Scope } from "./Scope";
 export function Rail({
   settings,
   set,
+  onPalette,
   source,
   sourceLabel,
 }: {
   settings: Settings;
   set: (patch: Partial<Settings>) => void;
+  onPalette: (id: string) => void;
   source: Source | null;
   sourceLabel: string;
 }) {
+  const colour = settings.palette === SOURCE_PALETTE;
   const motion = (
     label: string,
     key: keyof Settings,
@@ -122,12 +130,18 @@ export function Rail({
           {ALGORITHMS.find((a) => a.id === settings.algorithm)?.note}
         </p>
         <Slider
-          label="Tones"
+          label={colour ? "Steps per channel" : "Tones"}
           value={settings.levels}
           min={2}
-          max={12}
+          max={colour ? MAX_SOURCE_LEVELS : 12}
           onChange={(v) => set({ levels: v })}
         />
+        {colour && (
+          <p className="text-[11px] leading-[15px] tracking-[-0.01em] text-dim">
+            {settings.levels ** 3} colours. Capped at six steps because a GIF
+            colour table holds 256 and seven cubed is 343.
+          </p>
+        )}
         <Slider
           label="Threshold"
           value={settings.spread}
@@ -139,6 +153,29 @@ export function Rail({
       </Section>
 
       <Section title="Colour">
+        <button
+          type="button"
+          onClick={() => onPalette(SOURCE_PALETTE)}
+          className={`flex items-center gap-2 rounded-[2px] p-2 text-left transition-colors duration-150 ${
+            colour ? "bg-accent" : "bg-raised hover:bg-raised-hover"
+          }`}
+          style={{ transitionTimingFunction: "var(--ease)" }}
+        >
+          <span
+            className="h-[14px] w-[14px] shrink-0 rounded-[1px]"
+            style={{
+              background:
+                "conic-gradient(#ff0040, #ffd400, #22dd55, #00c8ff, #6a4bff, #ff0040)",
+            }}
+          />
+          <span
+            className={`text-[11px] font-medium tracking-[-0.01em] ${
+              colour ? "text-void" : "text-text"
+            }`}
+          >
+            Keep the image's own colour
+          </span>
+        </button>
         <div className="grid grid-cols-2 gap-px">
           {PALETTES.map((p) => {
             const active = p.id === settings.palette;
@@ -151,7 +188,7 @@ export function Rail({
               <button
                 key={p.id}
                 type="button"
-                onClick={() => set({ palette: p.id })}
+                onClick={() => onPalette(p.id)}
                 className={`flex items-center gap-2 rounded-[2px] p-1.5 text-left transition-colors duration-150 ${
                   active ? "bg-accent" : "bg-raised hover:bg-raised-hover"
                 }`}
@@ -177,11 +214,13 @@ export function Rail({
             );
           })}
         </div>
-        <Toggle
-          label="Flip light and dark"
-          checked={settings.paletteInvert}
-          onChange={(v) => set({ paletteInvert: v })}
-        />
+        {!colour && (
+          <Toggle
+            label="Flip light and dark"
+            checked={settings.paletteInvert}
+            onChange={(v) => set({ paletteInvert: v })}
+          />
+        )}
       </Section>
 
       <Section title="Motion" right={<span className="value text-dim">{settings.cycles}× / loop</span>}>

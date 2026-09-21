@@ -21,6 +21,11 @@ export type Source = {
   height: number;
   /** Luminance, 0..1, at working resolution. */
   lum: Float32Array;
+  /** The same pixels as RGB, 0..1, interleaved. Kept alongside luminance
+      rather than derived on demand: the colour path needs all three channels
+      per pixel per frame, and the scope and every ramp palette need the single
+      luminance figure, so both are paid for once here instead of per frame. */
+  rgb: Float32Array;
 };
 
 /**
@@ -73,6 +78,7 @@ export function prepareSource(
 
   const rgba = fctx.getImageData(0, 0, w, h).data;
   const lum = new Float32Array(w * h);
+  const rgb = new Float32Array(w * h * 3);
   for (let i = 0, p = 0; i < lum.length; i++, p += 4) {
     // Rec. 709 on sRGB values. Linearising first is more correct and looks
     // worse here — it drags the midtones down until portraits go to mud at two
@@ -82,11 +88,28 @@ export function prepareSource(
     // Transparent pixels read as white, so a cut-out subject dithers against
     // paper rather than against a black rectangle.
     lum[i] = v * a + (1 - a);
+    // Transparency composites onto white here too, so a cut-out subject keeps
+    // the same background in colour as it has in monochrome.
+    rgb[i * 3] = (rgba[p] / 255) * a + (1 - a);
+    rgb[i * 3 + 1] = (rgba[p + 1] / 255) * a + (1 - a);
+    rgb[i * 3 + 2] = (rgba[p + 2] / 255) * a + (1 - a);
   }
 
-  if (settings.detail > 0) unsharp(lum, w, h, settings.detail / 100);
+  if (settings.detail > 0) {
+    const amount = settings.detail / 100;
+    unsharp(lum, w, h, amount);
+    // Each channel separately. Sharpening luminance alone and reapplying it
+    // would need a colour space this tool does not otherwise have, and at the
+    // resolutions being dithered the difference is not visible.
+    const plane = new Float32Array(w * h);
+    for (let c = 0; c < 3; c++) {
+      for (let i = 0; i < plane.length; i++) plane[i] = rgb[i * 3 + c];
+      unsharp(plane, w, h, amount);
+      for (let i = 0; i < plane.length; i++) rgb[i * 3 + c] = plane[i];
+    }
+  }
 
-  return { width: w, height: h, lum };
+  return { width: w, height: h, lum, rgb };
 }
 
 /**
@@ -183,6 +206,38 @@ function sample(lum: Float32Array, w: number, h: number, x: number, y: number): 
   return a + (b - a) * fx + (c - a + (d - b - c + a) * fx) * fy;
 }
 
+/** The three-channel version of the sampler above. Written out rather than
+    called three times: the weights are the expensive part and they are the
+    same for all three channels. */
+function sample3(
+  rgb: Float32Array,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  out: [number, number, number],
+) {
+  const cx = Math.min(w - 1, Math.max(0, x));
+  const cy = Math.min(h - 1, Math.max(0, y));
+  const x0 = Math.floor(cx);
+  const y0 = Math.floor(cy);
+  const x1 = Math.min(w - 1, x0 + 1);
+  const y1 = Math.min(h - 1, y0 + 1);
+  const fx = cx - x0;
+  const fy = cy - y0;
+  const i00 = (y0 * w + x0) * 3;
+  const i01 = (y0 * w + x1) * 3;
+  const i10 = (y1 * w + x0) * 3;
+  const i11 = (y1 * w + x1) * 3;
+  for (let c = 0; c < 3; c++) {
+    const a = rgb[i00 + c];
+    const b = rgb[i01 + c];
+    const d = rgb[i10 + c];
+    const e = rgb[i11 + c];
+    out[c] = a + (b - a) * fx + (d - a + (e - b - d + a) * fx) * fy;
+  }
+}
+
 /**
  * Render one frame of the loop.
  *
@@ -197,6 +252,10 @@ export function renderFrame(
   frame: number,
   levels: number,
   out?: Uint8Array,
+  /** Quantise the image's own red, green and blue instead of mapping its
+      luminance onto a ramp. The index written is then a position in the
+      levels^3 cube that buildSourcePalette lays out, not a tone. */
+  colour = false,
 ): Uint8Array {
   const { width: w, height: h, lum } = src;
   const indices = out ?? new Uint8Array(w * h);
@@ -240,6 +299,50 @@ export function renderFrame(
   const L = levels - 1;
   const spread = (settings.spread / 100) * (1 / Math.max(1, L));
 
+  /** Where this pixel reads from, once every spatial motion has been applied.
+      Shared by both paths so colour and monochrome cannot drift apart. */
+  const warpAt = (x: number, y: number): [number, number] => {
+    let sx = x;
+    let sy = y;
+    if (waveAmp > 0) {
+      sx += waveAmp * Math.sin(TAU * (y / waveLen) + phase);
+      sy += waveAmp * 0.35 * Math.cos(TAU * (x / waveLen) + phase);
+    }
+    if (rippleAmp > 0) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const r = Math.hypot(dx, dy) || 0.0001;
+      const d = rippleAmp * Math.sin(TAU * (r / rippleLen) - phase);
+      sx += (dx / r) * d;
+      sy += (dy / r) * d;
+    }
+    if (swirlAmp > 0) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const r = Math.hypot(dx, dy);
+      // Falls off from the centre, so the edges of the frame stay put and the
+      // twist reads as depth rather than the whole image rotating.
+      const a = swirlAmp * (1 - r / maxR) * Math.sin(phase);
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      sx = cx + dx * c - dy * sn;
+      sy = cy + dx * sn + dy * c;
+    }
+    return [sx, sy];
+  };
+
+  /** The threshold this pixel is compared against, drifted by the loop. */
+  const thresholdAt = (x: number, y: number): number => {
+    if (mask) {
+      const mx = (((x + offX) % mask.size) + mask.size) % mask.size;
+      const my = (((y + offY) % mask.size) + mask.size) % mask.size;
+      return mask.data[my * mask.size + mx];
+    }
+    // "grain" — evaluated per pixel, and advanced by the frame so it moves
+    // with the loop instead of sitting still on top of it.
+    return ign(x + offX + frame * 13, y + offY + frame * 7);
+  };
+
   // Error diffusion needs a mutable copy of the (already warped and toned)
   // image, because it writes the error back into pixels it has not reached yet.
   const work = diffusion ? new Float32Array(w * h) : null;
@@ -259,36 +362,86 @@ export function renderFrame(
     return settings.invert ? 1 - out : out;
   };
 
+  /* ---- colour ----------------------------------------------------------
+     The image's own colour, quantised per channel against the same threshold
+     field the monochrome path uses. Three channels through one mask is what
+     keeps it reading as one dithered image rather than three that happen to be
+     stacked — a different mask per channel produces colour fringing on every
+     edge.
+
+     Error diffusion carries three errors instead of one; everything else is
+     the monochrome path with the loop run three times. */
+  if (colour) {
+    const n = Math.min(6, Math.max(2, levels));
+    const CL = n - 1;
+    const cSpread = (settings.spread / 100) * (1 / Math.max(1, CL));
+    const work3 = diffusion ? new Float32Array(w * h * 3) : null;
+    const px: [number, number, number] = [0, 0, 0];
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (warping) {
+          const [sx, sy] = warpAt(x, y);
+          sample3(src.rgb, w, h, sx, sy, px);
+        } else {
+          const i = (y * w + x) * 3;
+          px[0] = src.rgb[i];
+          px[1] = src.rgb[i + 1];
+          px[2] = src.rgb[i + 2];
+        }
+
+        if (work3) {
+          const i = (y * w + x) * 3;
+          work3[i] = tone(px[0], y);
+          work3[i + 1] = tone(px[1], y);
+          work3[i + 2] = tone(px[2], y);
+          continue;
+        }
+
+        let th = thresholdAt(x, y);
+        if (shimmerAmp > 0) th += shimmerAmp * (hashNoise(x, y, frame) - 0.5);
+        const bias = (th - 0.5) * cSpread * CL;
+        let index = 0;
+        for (let c = 0; c < 3; c++) {
+          const q = Math.min(CL, Math.max(0, Math.round((tone(px[c], y) + bias) * CL)));
+          index = index * n + q;
+        }
+        indices[y * w + x] = index;
+      }
+    }
+
+    if (work3 && diffusion) {
+      for (let y = 0; y < h; y++) {
+        const leftToRight = y % 2 === 0;
+        for (let i = 0; i < w; i++) {
+          const x = leftToRight ? i : w - 1 - i;
+          let index = 0;
+          for (let c = 0; c < 3; c++) {
+            let v = work3[(y * w + x) * 3 + c];
+            if (shimmerAmp > 0) v += shimmerAmp * 0.35 * (hashNoise(x, y + c * 977, frame) - 0.5);
+            const q = Math.min(CL, Math.max(0, Math.round(v * CL)));
+            index = index * n + q;
+            const err = (v - q / CL) * (settings.spread / 100);
+            for (const [dx, dy, weight] of diffusion) {
+              const nx = x + (leftToRight ? dx : -dx);
+              const ny = y + dy;
+              if (nx < 0 || nx >= w || ny >= h) continue;
+              work3[(ny * w + nx) * 3 + c] += err * weight;
+            }
+          }
+          indices[y * w + x] = index;
+        }
+      }
+    }
+
+    return indices;
+  }
+
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let v: number;
       if (warping) {
-        let sx = x;
-        let sy = y;
-        if (waveAmp > 0) {
-          sx += waveAmp * Math.sin(TAU * (y / waveLen) + phase);
-          sy += waveAmp * 0.35 * Math.cos(TAU * (x / waveLen) + phase);
-        }
-        if (rippleAmp > 0) {
-          const dx = x - cx;
-          const dy = y - cy;
-          const r = Math.hypot(dx, dy) || 0.0001;
-          const d = rippleAmp * Math.sin(TAU * (r / rippleLen) - phase);
-          sx += (dx / r) * d;
-          sy += (dy / r) * d;
-        }
-        if (swirlAmp > 0) {
-          const dx = x - cx;
-          const dy = y - cy;
-          const r = Math.hypot(dx, dy);
-          // Falls off from the centre, so the edges of the frame stay put and
-          // the twist reads as depth rather than as the whole image rotating.
-          const a = swirlAmp * (1 - r / maxR) * Math.sin(phase);
-          const c = Math.cos(a);
-          const s = Math.sin(a);
-          sx = cx + dx * c - dy * s;
-          sy = cy + dx * s + dy * c;
-        }
+        const [sx, sy] = warpAt(x, y);
         v = sample(lum, w, h, sx, sy);
       } else {
         v = lum[y * w + x];
@@ -296,16 +449,7 @@ export function renderFrame(
       const toned = tone(v, y);
       if (work) work[y * w + x] = toned;
       else {
-        let th: number;
-        if (mask) {
-          const mx = (((x + offX) % mask.size) + mask.size) % mask.size;
-          const my = (((y + offY) % mask.size) + mask.size) % mask.size;
-          th = mask.data[my * mask.size + mx];
-        } else {
-          // "grain" — evaluated per pixel, and advanced by the frame so it
-          // moves with the loop instead of sitting still on top of it.
-          th = ign(x + offX + frame * 13, y + offY + frame * 7);
-        }
+        let th = thresholdAt(x, y);
         if (shimmerAmp > 0) th += shimmerAmp * (hashNoise(x, y, frame) - 0.5);
         const q = Math.round((toned + (th - 0.5) * spread * L) * L);
         indices[y * w + x] = Math.min(L, Math.max(0, q));

@@ -59,14 +59,14 @@ export function Scope({
     const sorted = Array.from(bins).sort((a, b) => a - b);
     const top = sorted[Math.floor(sorted.length * 0.99)] || 1;
 
-    ctx.fillStyle = "#3A3A42";
+    ctx.fillStyle = "#4A3D2E";
     for (let x = 0; x < W; x++) {
       const h = Math.min(1, bins[x] / top) * H;
       ctx.fillRect(x, H - h, 1, h);
     }
 
     // Level marks.
-    ctx.fillStyle = "#FF4A1C";
+    ctx.fillStyle = "#FF9F1C";
     for (let i = 0; i < levels; i++) {
       const x = Math.round((i / (levels - 1)) * (W - 1));
       ctx.fillRect(x, 0, 1, H);

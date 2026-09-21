@@ -20,19 +20,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        void: "#0A0A0B", // the stage and the page behind everything
-        panel: "#101012", // chrome
-        raised: "#17171A", // controls at rest
-        "raised-hover": "#212126",
-        line: "#26262B",
-        text: "#F2F2F4",
-        dim: "#8C8C96",
-        // Signal orange. Reads as instrument rather than brand, and it is the
-        // one hue that stays legible against every palette the tool can
-        // produce — an accent that vanishes inside the artwork is not an
-        // accent.
-        accent: "#FF4A1C",
-        "accent-hover": "#FF6338",
+        /* Sampled from shreygups.com/work/olive, which sets them as CSS
+           variables: --bg #140c08, --ink #fff6e8, --accent #ff9f1c,
+           --link #ffc8a0. A warm brown-black rather than a neutral one, which
+           is the whole difference — every dithered image on the stage picks up
+           the cast of what surrounds it, and a warm ground makes a
+           two-tone image read as a print rather than as a screenshot. */
+        void: "#140C08", // the stage and the page behind everything
+        panel: "#1A100A", // chrome, one step up from the stage
+        raised: "#241709", // controls at rest
+        "raised-hover": "#31200D",
+        line: "#2A1B0C", // the site's --line is 5% accent over bg; this is a
+        // touch stronger, because a control here has to
+        // survive being next to a photograph.
+        text: "#FFF6E8",
+        /* Muted is the ink at 45% over the background rather than a grey:
+           a neutral grey against this brown reads as dirty. */
+        dim: "#7E756D",
+        accent: "#FF9F1C",
+        "accent-hover": "#FFB347",
+        /* The site's --link. Used for figures, so numbers sit a half-step
+           warmer than the labels beside them. */
+        warm: "#FFC8A0",
       },
       fontFamily: {
         sans: ["'Inter Tight'", "system-ui", "sans-serif"],

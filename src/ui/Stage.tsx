@@ -63,7 +63,7 @@ export function Stage({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(100% 80% at 50% 42%, rgba(120,125,150,0.13), rgba(10,10,11,0) 70%)",
+            "radial-gradient(100% 80% at 50% 42%, rgba(255,159,28,0.10), rgba(20,12,8,0) 70%)",
         }}
       />
 
@@ -116,8 +116,8 @@ export function Stage({
           dragging ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         style={{
-          background: "rgba(10,10,11,0.82)",
-          boxShadow: "inset 0 0 0 1px #FF4A1C",
+          background: "rgba(20,12,8,0.86)",
+          boxShadow: "inset 0 0 0 1px #FF9F1C",
           transitionTimingFunction: "var(--ease)",
         }}
         tabIndex={dragging ? 0 : -1}
