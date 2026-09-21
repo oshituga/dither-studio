@@ -20,6 +20,13 @@ integer number of cycles per loop, so the loop is seamless by construction
 rather than by eye: frame N and frame 0 are the same evaluation, and there is
 no accumulated drift to hide behind a cross-fade.
 
+**Colour, three ways.** Map the image's luminance onto a ramp; keep the
+image's own colour by quantising its red, green and blue through the same
+threshold field (capped at six steps per channel, because 6^3 is 216 and a GIF
+table holds 256); or build your own ramp, stop by stop. "Take the colours from
+the image" fills that ramp by median cut over the source pixels, so the stops
+land where the photograph actually has colour.
+
 **Tone before threshold.** Exposure, contrast, midtones and an unsharp mask,
 with a luminance scope that reads the image after tone and before dithering —
 with the quantisation levels drawn on it, because a histogram sitting entirely
@@ -27,6 +34,10 @@ between two marks is the picture that is about to come out flat.
 
 **Export.** GIF, MP4/WebM, a still, or every frame on one sheet, at 1–4×
 nearest-neighbour scale.
+
+**Shareable.** Every control, including your own colour stops, is encoded in
+the URL — so a link carries the look. The image is never in it: that stays on
+the machine it was opened on.
 
 ## Notes on the build
 
